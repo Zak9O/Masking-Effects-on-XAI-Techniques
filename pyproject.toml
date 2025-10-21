@@ -3,6 +3,7 @@ name = "bachelor"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
+    "basedpyright>=1.31.7",
     "kagglehub[pandas-datasets]>=0.3.13",
     "marimo>=0.15.3",
     "matplotlib>=3.10.6",
@@ -15,4 +16,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "python-lsp-server>=1.13.1",
+]
+
+[tool.uv.workspace]
+members = [
+    "notebooks/anonymization-with-anjana",
 ]
