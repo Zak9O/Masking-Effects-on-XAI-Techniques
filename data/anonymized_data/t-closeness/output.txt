@@ -1,0 +1,21 @@
+Finished for t=0.1
+
+Finished for t=0.2
+
+Finished for t=0.3
+
+Finished for t=0.4
+
+Finished for t=0.5
+
+Finished for t=0.6
+
+Finished for t=0.7
+
+The data verifies t-closeness with t=0.7317550137305484
+
+Finished for t=0.8
+
+The data verifies t-closeness with t=0.7317550137305484
+
+Finished for t=0.9

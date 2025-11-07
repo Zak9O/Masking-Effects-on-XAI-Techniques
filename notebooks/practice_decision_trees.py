@@ -16,6 +16,7 @@ def _():
     from sklearn import preprocessing
     from sklearn import tree
     from sklearn.model_selection import cross_val_score
+
     return KaggleDatasetAdapter, kagglehub, pd, plt, preprocessing, sns, tree
 
 
@@ -27,7 +28,9 @@ def _(sns):
 
 @app.cell
 def _(KaggleDatasetAdapter, kagglehub):
-    path = kagglehub.dataset_download("pablomgomez21/drugs-a-b-c-x-y-for-decision-trees")
+    path = kagglehub.dataset_download(
+        "pablomgomez21/drugs-a-b-c-x-y-for-decision-trees"
+    )
     df = kagglehub.dataset_load(
         KaggleDatasetAdapter.PANDAS,
         "pablomgomez21/drugs-a-b-c-x-y-for-decision-trees",
@@ -51,7 +54,7 @@ def _(df):
 
 @app.cell
 def _(df, plt):
-    df['Drug'].value_counts().plot(kind='bar')
+    df["Drug"].value_counts().plot(kind="bar")
     plt.title("Distribution of Drug Classes")
     plt.xlabel("Drug")
     plt.ylabel("Count")
@@ -67,12 +70,12 @@ def _(df):
 
 @app.cell
 def _(df, plt, sns):
-    categorical_features = ['Sex', 'BP', 'Cholesterol']
+    categorical_features = ["Sex", "BP", "Cholesterol"]
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
     for i, feature in enumerate(categorical_features):
-        sns.countplot(x='Drug', hue=feature, data=df, ax=axes[i])
+        sns.countplot(x="Drug", hue=feature, data=df, ax=axes[i])
         axes[i].set_title(f"{feature} vs Drug")
         axes[i].set_xlabel("Drug")
         axes[i].set_ylabel("Count")
@@ -95,14 +98,14 @@ def _(df, pd, preprocessing):
 
     le = preprocessing.LabelEncoder()
     le.fit(df["Drug"].unique().tolist())
-    data['Drug'] = le.transform(data['Drug'])
+    data["Drug"] = le.transform(data["Drug"])
     return (data,)
 
 
 @app.cell
 def _(data):
-    X = data.drop('Drug', axis=1)
-    y = data['Drug']
+    X = data.drop("Drug", axis=1)
+    y = data["Drug"]
     sep = 150
     X_train, y_train = X[0:sep], y[0:sep]
     X_test, y_test = X[sep:], y[sep:]
@@ -124,7 +127,7 @@ app._unparsable_cell(
     print(scores.mean())
     print(scores.std()
     """,
-    name="_"
+    name="_",
 )
 
 

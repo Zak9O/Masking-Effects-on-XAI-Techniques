@@ -1,0 +1,1 @@
+[anjana](https://github.com/IFCA-Advanced-Computing/anjana) used for anonymization depends on a low version of numpy. This branch is a lazyness branch where all packages are of a sligher older version to make anjan work

@@ -3,22 +3,44 @@ name = "bachelor"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
-    "basedpyright>=1.31.7",
+    "google-genai>=1.46.0",
+    "ipython>=8.37.0",
+    "jupyterlab>=4.4.10",
+    "jupyterlab-lsp>=5.2.0",
+    "jupyterlab-vim>=4.1.4",
     "kagglehub[pandas-datasets]>=0.3.13",
-    "marimo>=0.15.3",
+    "lime>=0.2.0.1",
+    "marimo>=0.17.3",
     "matplotlib>=3.10.6",
     "numpy>=2.2.6",
     "scikit-learn>=1.7.2",
+    "scipy>=1.15.3",
     "seaborn>=0.13.2",
     "ucimlrepo>=0.0.7",
 ]
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.32.1",
+    "pandas-stubs>=2.3.2.250926",
     "python-lsp-server>=1.13.1",
+    "ruff>=0.14.3",
 ]
 
 [tool.uv.workspace]
 members = [
     "notebooks/anonymization-with-anjana",
 ]
+
+[tool.pyright]
+reportUnannotatedClassAttribute = "none"
+reportImplicitOverride = "none"
+reportUnknownParameterType = "none"
+reportMissingParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+stubPath = "typings"
+
+[tool.marimo.language_servers.basedpyright]
+stubPath = "typings"

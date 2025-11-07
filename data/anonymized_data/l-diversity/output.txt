@@ -1,0 +1,23 @@
+The data verifies l-diversity with l=1
+
+Finished for l=1
+
+Finished for l=2
+
+l-diversity cannot be achieved for l=3
+
+Finished for l=3
+
+l-diversity cannot be achieved for l=4
+
+Finished for l=4
+
+l-diversity cannot be achieved for l=5
+
+Finished for l=5
+
+l-diversity cannot be achieved for l=6
+
+Finished for l=6
+
+This makes sense, because there are only two possible values for the sensitive value

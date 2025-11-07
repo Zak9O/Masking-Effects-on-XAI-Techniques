@@ -1,0 +1,4 @@
+.virtual_documents
+.vscode
+notebooks/.ipynb_checkpoints
+notebooks/__pycache__

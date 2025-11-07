@@ -1,0 +1,37 @@
+(alpha,k)-anonymity cannot be achieved for alpha=0.0
+
+Finished for k=10, alpha=0.0
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.1
+
+Finished for k=10, alpha=0.1
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.2
+
+Finished for k=10, alpha=0.2
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.30000000000000004
+
+Finished for k=10, alpha=0.3
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.4
+
+Finished for k=10, alpha=0.4
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.5
+
+Finished for k=10, alpha=0.5
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.6000000000000001
+
+Finished for k=10, alpha=0.6
+
+(alpha,k)-anonymity cannot be achieved for alpha=0.7000000000000001
+
+Finished for k=10, alpha=0.7
+
+Finished for k=10, alpha=0.8
+
+Finished for k=10, alpha=0.9
+
+Finished for k=10, alpha=1.0
