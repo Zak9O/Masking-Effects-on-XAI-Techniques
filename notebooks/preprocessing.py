@@ -180,11 +180,9 @@ class AdultPrep:
         """Removes specified columns and rows containing null values."""
 
         def __init__(self, is_anonymized):
-            columns_to_drop = ["fnlwgt"]
+            columns_to_drop = []
             if is_anonymized:
                 columns_to_drop.append("index")
-            else:
-                columns_to_drop.append("education-num")
 
             self.columns_to_drop = columns_to_drop
 
