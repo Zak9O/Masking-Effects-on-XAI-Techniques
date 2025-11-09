@@ -2,7 +2,9 @@
 .vscode
 notebooks/.ipynb_checkpoints
 notebooks/__pycache__
+notebooks/*.png
 data/t_closeness
 data/l_diversity
 data/alpha_k_anonymity
 data/clean.csv
+notebooks/debug.py
