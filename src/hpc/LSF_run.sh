@@ -12,16 +12,16 @@ source "$HPC/.venv/bin/activate"
 echo "Running Python script..."
 
 # Can be "t_closeness", "alpha_k_anonymity", "l_diversity", or "k_anonymity"
-local anonymization_method="CHANGE_THIS_METHOD"
-local data_path="$HPC/clean_data.csv"
-local hierarchies_path="$HPC/hierarchies"
-local save_dir_path="$MY_HOME/hpcout/${anonymization_method}"
+anonymization_method="CHANGE_THIS_METHOD"
+data_path="$HPC/data/clean.csv"
+hierarchies_path="$HPC/hierarchies"
+save_dir_path="$HPC/out/${anonymization_method}"
 
 python3 anonymize.py \
-  --anonymization_method ${anonymization_method} \
-  --data_path ${data_path} \
-  --hierarchies_path ${hierarchies_path} \
-  --save_dir_path ${save_dir_path}
+  ${data_path} \
+  ${hierarchies_path} \
+  ${save_dir_path} \
+  ${anonymization_method} \
 
 echo "=========================================================="
 echo "Job finished on $(date)"

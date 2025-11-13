@@ -3,7 +3,6 @@
 source ./common_vars.sh
 
 rm tmp_submit_file.sh -f
-ANONYMIZATION_METHODS="t_closeness alpha_k_anonymity l_diversity k_anonymity"
 
 declare -a methods=("t_closeness" "alpha_k_anonymity" "l_diversity" "k_anonymity")
 
