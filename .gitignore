@@ -12,3 +12,6 @@ data/*/k_anonymity
 data/*/l_diversity
 data/*/t_closeness
 data/*/clean.csv
+src/hpc/anonymized
+src/hpc/data
+src/hpc/hierarchies
