@@ -8,3 +8,4 @@ data/l_diversity
 data/t_closeness
 data/clean.csv
 notebooks/debug.py
+debug
