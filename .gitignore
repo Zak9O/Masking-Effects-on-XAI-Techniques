@@ -2,10 +2,11 @@
 .vscode
 notebooks/.ipynb_checkpoints
 data/alpha_k_anonymity
-notebooks/debug.py
 debug
+typings
 src/masking_effects_on_xai_techniques/__pycache__
 data/*/alpha_k_anonymity
+data/*/k_anonymity
 data/*/l_diversity
 data/*/t_closeness
 data/*/clean.csv
