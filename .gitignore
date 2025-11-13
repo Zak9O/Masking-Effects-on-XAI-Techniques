@@ -1,10 +1,12 @@
 .virtual_documents
 .vscode
-notebooks/.ipynb_checkpoints
-data/alpha_k_anonymity
-debug
-typings
-src/masking_effects_on_xai_techniques/__pycache__
+
+/notebooks/.ipynb_checkpoints
+/src/debug
+/typings/
+
+__pycache__
+
 data/*/alpha_k_anonymity
 data/*/k_anonymity
 data/*/l_diversity
