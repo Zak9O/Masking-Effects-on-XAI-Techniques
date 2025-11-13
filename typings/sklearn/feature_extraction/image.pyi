@@ -3,7 +3,6 @@ from numbers import Integral as Integral, Number as Number, Real as Real
 from typing import Any, ClassVar
 from typing_extensions import Self
 
-import numpy as np
 from numpy import ndarray
 from numpy.lib.stride_tricks import as_strided as as_strided
 from numpy.random import RandomState

@@ -1,4 +1,3 @@
-import warnings
 from collections.abc import Iterable
 from functools import partial as partial
 from inspect import signature as signature
@@ -7,7 +6,6 @@ from numbers import Integral as Integral
 from typing import ClassVar, Literal
 from typing_extensions import Self
 
-import numpy as np
 from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure

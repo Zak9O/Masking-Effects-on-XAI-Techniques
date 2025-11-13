@@ -1,10 +1,7 @@
-import math
-import warnings
 from numbers import Real as Real
 from typing import Callable, ClassVar, Literal
 from typing_extensions import Self
 
-import numpy as np
 from numpy import ndarray
 from scipy import interpolate as interpolate
 from scipy.stats import spearmanr as spearmanr

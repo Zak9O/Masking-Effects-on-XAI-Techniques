@@ -1,6 +1,3 @@
-import numbers
-import operator
-import warnings
 from collections.abc import Sequence
 from contextlib import suppress as suppress
 from functools import wraps as wraps
@@ -8,9 +5,6 @@ from inspect import Parameter as Parameter, isclass as isclass, signature as sig
 from numbers import Integral, Number, Real
 from typing import Any, Callable, Literal
 
-import joblib
-import numpy as np
-import scipy.sparse as sp
 from joblib.memory import Memory
 from numpy import ndarray
 from numpy.core.numeric import ComplexWarning as ComplexWarning
@@ -19,7 +13,6 @@ from pandas import DataFrame
 from scipy.sparse import spmatrix
 from scipy.sparse._coo import coo_matrix
 
-from .. import get_config as _get_config
 from .._typing import ArrayLike, Float, Int, MatrixLike
 from ..base import BaseEstimator
 from ..exceptions import (

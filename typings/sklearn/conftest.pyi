@@ -1,11 +1,7 @@
-import platform
-import sys
 from collections.abc import Sequence
 from functools import wraps as wraps
 from os import environ as environ
 
-import numpy as np
-import pytest
 from _pytest.doctest import DoctestItem as DoctestItem
 from threadpoolctl import threadpool_limits as threadpool_limits
 

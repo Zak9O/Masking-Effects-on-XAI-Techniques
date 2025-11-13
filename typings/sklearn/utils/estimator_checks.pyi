@@ -1,14 +1,9 @@
-import pickle
-import re
-import warnings
 from collections.abc import Generator, Sequence
 from copy import deepcopy as deepcopy
 from functools import partial as partial, wraps as wraps
 from inspect import signature as signature
 from numbers import Real as Real
 
-import joblib
-import numpy as np
 from _pytest.mark.structures import _ParametrizeMarkDecorator
 from scipy import sparse as sparse
 from scipy.stats import rankdata as rankdata

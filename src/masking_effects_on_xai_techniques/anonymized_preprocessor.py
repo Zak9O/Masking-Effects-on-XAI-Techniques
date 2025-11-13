@@ -28,4 +28,3 @@ def _encode_by_order(df: DataFrame, encoding_order: dict[str, list[str]]) -> Dat
         encoder = OrdinalEncoder(categories=[order])
         df[column] = encoder.fit_transform(df[[column]])
     return df
-

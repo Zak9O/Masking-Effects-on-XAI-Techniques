@@ -1,7 +1,3 @@
-import array
-import re
-import unicodedata
-import warnings
 from collections import defaultdict as defaultdict
 from collections.abc import Iterable, Mapping
 from functools import partial
@@ -10,8 +6,6 @@ from operator import itemgetter as itemgetter
 from typing import Any, Callable, ClassVar, Literal
 from typing_extensions import Self
 
-import numpy as np
-import scipy.sparse as sp
 from numpy import ndarray
 from scipy.sparse import spmatrix
 

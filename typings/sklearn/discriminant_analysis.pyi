@@ -1,12 +1,8 @@
-import warnings
 from numbers import Integral as Integral, Real as Real
 from typing import ClassVar, Literal
 from typing_extensions import Self
 
-import numpy as np
-import scipy.linalg
 from numpy import ndarray
-from scipy import linalg
 
 from ._typing import ArrayLike, Float, Int, MatrixLike
 from .base import (

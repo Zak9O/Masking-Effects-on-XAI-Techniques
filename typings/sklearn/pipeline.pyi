@@ -4,7 +4,6 @@ from itertools import islice as islice
 from typing import Any, ClassVar, Literal
 from typing_extensions import Self
 
-import numpy as np
 from joblib import Memory
 from numpy import ndarray
 from pandas.core.frame import DataFrame

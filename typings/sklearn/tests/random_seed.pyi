@@ -1,5 +1,3 @@
-import pytest
-
 # Passes the main worker's random seeds to workers
 class XDistHooks:
     def pytest_configure_node(self, node) -> None: ...

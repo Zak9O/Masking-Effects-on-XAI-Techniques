@@ -1,12 +1,9 @@
-import math
-import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
 from inspect import signature as signature
 from typing import Callable, Literal, NamedTuple
 from typing_extensions import Self
 
-import numpy as np
 from numpy import ndarray
 from scipy.spatial.distance import (
     cdist as cdist,
