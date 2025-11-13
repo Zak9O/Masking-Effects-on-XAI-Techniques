@@ -247,7 +247,7 @@ if __name__ == "__main__":
         values = list(np.linspace(1, 10, 10))
     elif method == "k_anonymity":
         anonymizer = KAnonymity(df, args.hierarchies_path, args.save_dir_path)
-        values = [2**i for i in range(1, 8)]
+        values = [2**i for i in range(1, 9)]
     else:
         raise ValueError(f"Unknown anonymization method: {method}")
 
