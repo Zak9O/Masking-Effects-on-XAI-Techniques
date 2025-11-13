@@ -1,7 +1,7 @@
 [project]
 name = "masking-effects-on-xai-techniques"
 version = "0.1.0"
-description = "Add your description here"
+description = "A bachelor thesis investigating the masking effects on XAI techniques"
 readme = "README.md"
 authors = [
     { name = "Casper Lauge Nørup Koch", email = "kochcasper@gmail.com" }
@@ -38,11 +38,6 @@ dev = [
     "ruff>=0.14.3",
 ]
 
-[tool.uv.workspace]
-members = [
-    "notebooks/anonymization-with-anjana",
-]
-
 [tool.pyright]
 reportUnannotatedClassAttribute = "none"
 reportImplicitOverride = "none"
@@ -51,7 +46,4 @@ reportMissingParameterType = "none"
 reportUnknownVariableType = "none"
 reportUnknownMemberType = "none"
 reportUnknownArgumentType = "none"
-stubPath = "typings"
-
-[tool.marimo.language_servers.basedpyright]
 stubPath = "typings"
