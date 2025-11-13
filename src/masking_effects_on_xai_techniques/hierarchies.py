@@ -9,7 +9,7 @@ def generate_hierarchy(values: pd.Series, levels: int) -> dict[int, pd.Series]:
 
     for i in range(1, levels):
         hierarchy[i] = generalize_series(values, levels - i + 1)
-    
+
     hierarchy[levels] = pd.Series("*", index=values.index)
 
     return hierarchy
@@ -39,4 +39,3 @@ def generalize_series(data_series: pd.Series, n: int) -> pd.Series:
     binned_series = binned_series.astype(object)
 
     return binned_series
- 
