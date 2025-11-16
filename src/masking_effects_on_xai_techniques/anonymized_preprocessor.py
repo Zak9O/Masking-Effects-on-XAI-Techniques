@@ -5,11 +5,13 @@ from sklearn.preprocessing import OrdinalEncoder
 from pandas import DataFrame
 
 
-def encode(df: DataFrame, hierarchy_path="./hierarchies/") -> DataFrame:
+def encode(
+    df: DataFrame, hierarchy_path="./hierarchies/", skip_columns=[]
+) -> DataFrame:
     encoding_order = {}
 
     for column in df.columns:
-        if column == "index":
+        if column == "index" or column in skip_columns:
             continue
         hierarachy = dict(pd.read_csv(f"{hierarchy_path}{column}.csv", header=None))
 
@@ -25,6 +27,6 @@ def encode(df: DataFrame, hierarchy_path="./hierarchies/") -> DataFrame:
 def _encode_by_order(df: DataFrame, encoding_order: dict[str, list[str]]) -> DataFrame:
     df = df.copy()
     for column, order in encoding_order.items():
-        encoder = OrdinalEncoder(categories=[order])
+        encoder = OrdinalEncoder(categories=[order], dtype=int)
         df[column] = encoder.fit_transform(df[[column]])
     return df
