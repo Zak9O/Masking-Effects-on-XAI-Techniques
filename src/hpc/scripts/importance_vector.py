@@ -57,7 +57,7 @@ def shap_importance(df: pd.DataFrame) -> tuple[float, list[tuple[str, int]]]:
     skip_columns = []
     for feature in numeric_features:
         # if feature is numeric in df then add to skip_columns
-        d_type = type(df[feature].iloc[0])
+        d_type = type(df[feature])
         if d_type is not str:
             skip_columns.append(feature)
 

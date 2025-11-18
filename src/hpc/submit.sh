@@ -15,6 +15,14 @@ function sub {
     echo "Processing method: **$i** on **$1**"
 
     export JOB_NAME="$i"
+    if [ "$i" == "shap" ]; then
+      export LSB_NCPU="1"
+      export LSB_MEM="500MB"
+    else 
+      export LSB_NCPU="1"
+      export LSB_MEM="8GB"
+    fi
+
     envsubst < "./LSF_options.sh" >> "tmp_submit_file.sh"
 
     export METHOD="$i"

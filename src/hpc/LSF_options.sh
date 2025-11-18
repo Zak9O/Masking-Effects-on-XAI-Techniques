@@ -5,9 +5,10 @@
 # --- Set the job Name --
 #BSUB -J ${JOB_NAME}
 # --- Ask for number of cores (default: 1) --
-#BSUB -n 1
+#BSUB -n ${LSB_NCPU}
+#BSUB -R "span[hosts=1]"
 # --- Specify that we need 4GB of memory per core/slot --
-#BSUB -R "rusage[mem=8GB]"
+#BSUB -R "rusage[mem=${LSB_MEM}]"
 
 # --- Set walltime limit: hh:mm --
 # NOTE: Your LIME calculation with 5000 explanations might take a long time.
