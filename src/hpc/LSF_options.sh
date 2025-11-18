@@ -3,7 +3,7 @@
 # --- Specify the queue --
 #BSUB -q hpc
 # --- Set the job Name --
-#BSUB -J JOB_NAME
+#BSUB -J ${JOB_NAME}
 # --- Ask for number of cores (default: 1) --
 #BSUB -n 1
 # --- Specify that we need 4GB of memory per core/slot --
@@ -17,7 +17,7 @@
 
 
 # --- Specify the output and error file. %J is the job-id --
-#BSUB -o job_out/JOB_NAME_%J.out
-#BSUB -e job_out/JOB_NAME_%J.err
+#BSUB -o job_out/${JOB_NAME}_%J.out
+#BSUB -e job_out/${JOB_NAME}_%J.err
 
 # --- End of LSF options --

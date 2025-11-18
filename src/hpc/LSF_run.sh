@@ -11,17 +11,10 @@ module load python3/3.12.11
 source "$HPC/.venv/bin/activate"
 echo "Running Python script..."
 
-# Can be "t_closeness", "alpha_k_anonymity", "l_diversity", or "k_anonymity"
-anonymization_method="CHANGE_THIS_METHOD"
-data_path="$HPC/data/clean.csv"
-hierarchies_path="$HPC/hierarchies"
-save_dir_path="$HPC/out/${anonymization_method}"
-
-python3 anonymize.py \
-  ${data_path} \
-  ${hierarchies_path} \
-  ${save_dir_path} \
-  ${anonymization_method} \
+python3 scripts/importance_vector.py \
+  "$HPC/${DATA_PATH}" \
+  "$HPC/out/${METHOD}/${DATA_PATH}" \
+  "${METHOD}"
 
 echo "=========================================================="
 echo "Job finished on $(date)"

@@ -15,3 +15,5 @@ data/*/clean.csv
 src/hpc/anonymized
 src/hpc/data
 src/hpc/hierarchies
+src/hpc/hpc
+src/hpc/tmp_submit_file.sh
