@@ -1,11 +1,18 @@
 # Ordinal encode everything that has been anonymized
 # Use the hiearachy as a the ordinal encoding order
 import pandas as pd
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 from pandas import DataFrame
 
 
-def encode(
+def normalize_feature(train: DataFrame, test: DataFrame, feature: str) -> None:
+    scaler = StandardScaler()
+    _ = scaler.fit(train[[feature]])
+    train[feature] = scaler.transform(train[[feature]])
+    test[feature] = scaler.transform(test[[feature]])
+
+
+def encode_by_hierarchy(
     df: DataFrame, hierarchy_path="./hierarchies/", skip_columns=[]
 ) -> DataFrame:
     encoding_order = {}
