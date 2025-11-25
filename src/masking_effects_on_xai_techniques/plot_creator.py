@@ -14,8 +14,10 @@ class Explanation:
     ) -> None:
         self.name = name
         self.accuracy = accuracy
-        self._ranking = [x[0] for x in importance]
-        self._ranking_values = [x[1] for x in importance]
+        self._ranking_values = [float(x[1]) for x in importance if float(x[1]) > 0]
+        self._ranking = [
+            x[0] for i, x in enumerate(importance) if i < len(self._ranking_values)
+        ]
 
     def get_ranking(self) -> list[str]:
         return self._ranking
