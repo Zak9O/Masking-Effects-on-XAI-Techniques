@@ -14,14 +14,14 @@ function sub {
     rm tmp_submit_file.sh -f
     echo "Processing method: **$i** on **$1**"
 
-    export JOB_NAME="$i"
+    export JOB_NAME="$i-$1"
     export LSB_NCPU="1"
     export LSB_MEM="8GB"
     export LSB_TIME_H="24"
     if [ "$i" == "shap" ]; then
       export LSB_MEM="500MB"
     elif [ "$i" == "lime" ]; then
-      export LSB_MEM="16GB"
+      export LSB_MEM="12GB"
     fi
 
     envsubst < "./LSF_options.sh" >> "tmp_submit_file.sh"
