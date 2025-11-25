@@ -264,7 +264,7 @@ def lime_importance(df: pd.DataFrame):
         X_train_np,
         f,
         sample_size=15000,
-        num_features=5,
+        num_features=len(X_train.column),  # We want to consider all features allways
         num_exps_desired=1000,
     )
     logging.info("LIME importance calculation finished.")
@@ -318,5 +318,5 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info(f"Saving importance vector to {args.data_out}")
-    np.save(args.data_out, [(score, "accuracy")] + importance)
+    np.save(args.data_out, [(score, "accuracy")] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
     logging.info("Script finished successfully.")
