@@ -258,3 +258,75 @@ class Comparer:
         plt.title(f"Feature Rank Comparison: {self.name}")
         plt.tight_layout()
         plt.show()
+
+
+def plot_comparison(
+    comparisors: list[Comparer],
+    series_names: list[str],
+    title: str,
+) -> None:
+    run_labels = [e.name for e in comparisors[0].explanations[1:]]
+    statistics_list = [
+        [n.correlation for n in comparisor.kendaltau] for comparisor in comparisors
+    ]
+    pvalues_list = [
+        [n.pvalue for n in comparisor.kendaltau] for comparisor in comparisors
+    ]
+
+    if len(statistics_list) != len(pvalues_list) or len(statistics_list) != len(
+        series_names
+    ):
+        raise ValueError(
+            "Input lists (statistics, pvalues, names) must have the same length."
+        )
+
+    n_series = len(statistics_list)
+    x = np.arange(len(run_labels))
+    width = 0.8 / n_series  # Dynamically calculate bar width
+
+    # Define distinct colors/markers for plotting
+    colors = ["skyblue", "orange", "lightgreen", "salmon"]
+    markers = ["o", "s", "^", "D"]
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+    # --- Subplot 1: Grouped Bar Chart ---
+    for i, (kendall_tau, name) in enumerate(zip(statistics_list, series_names)):
+        # Calculate offset to center the group of bars
+        offset = (i - (n_series - 1) / 2) * width
+        ax1.bar(
+            x + offset, kendall_tau, width, label=name, color=colors[i % len(colors)]
+        )
+
+    ax1.set_ylabel("Kendall's Tau Statistic ($\\tau$)")
+    ax1.set_title(f"Kendall's Tau Correlation Comparison for {title}")
+    ax1.legend()
+    ax1.grid(axis="y", linestyle="--", alpha=0.6)
+    ax1.set_ylim(-1.1, 1.1)
+
+    # --- Subplot 2: Line Chart ---
+    for i, (pvals, name) in enumerate(zip(pvalues_list, series_names)):
+        ax2.plot(
+            x,
+            pvals,
+            color=colors[i % len(colors)],
+            marker=markers[i % len(markers)],
+            linestyle="--" if i > 0 else "-",  # Dashed for secondary lines
+            linewidth=2,
+            label=f"{name} p-value",
+        )
+
+    ax2.axhline(
+        0.05, color="black", linestyle="--", linewidth=1.5, label="Significance (0.05)"
+    )
+
+    ax2.set_ylabel("P-value")
+    ax2.set_xlabel("anonymity-value")
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(run_labels)
+    ax2.grid(axis="y", linestyle="--", alpha=0.6)
+    ax2.set_ylim(-0.05, 1.05)
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
