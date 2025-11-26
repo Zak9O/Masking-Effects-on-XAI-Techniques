@@ -18,4 +18,5 @@ src/hpc/anonymized
 src/hpc/data
 src/hpc/hierarchies
 src/hpc/hpc
+src/hpc/remote
 src/hpc/tmp_submit_file.sh

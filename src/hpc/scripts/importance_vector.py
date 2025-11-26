@@ -264,7 +264,7 @@ def lime_importance(df: pd.DataFrame):
         X_train_np,
         f,
         sample_size=15000,
-        num_features=len(X_train.column),  # We want to consider all features allways
+        num_features=len(X_train.columns),  # We want to consider all features allways
         num_exps_desired=1000,
     )
     logging.info("LIME importance calculation finished.")

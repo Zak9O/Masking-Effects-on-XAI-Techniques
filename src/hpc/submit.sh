@@ -13,8 +13,7 @@ function sub {
   for i in "${methods[@]}"; do
     rm tmp_submit_file.sh -f
     echo "Processing method: **$i** on **$1**"
-
-    export JOB_NAME="$i-$1"
+    export JOB_NAME="${1//\//-}" # Same as file path, but all `/` replaced with `-`
     export LSB_NCPU="1"
     export LSB_MEM="8GB"
     export LSB_TIME_H="24"
