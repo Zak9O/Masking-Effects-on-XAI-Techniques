@@ -12,6 +12,12 @@ data/*/k_anonymity
 data/*/l_diversity
 data/*/t_closeness
 data/*/clean.csv
+data/*/shap
+data/*/lime
 src/hpc/anonymized
 src/hpc/data
 src/hpc/hierarchies
+src/hpc/hpc
+src/hpc/remote
+src/hpc/tmp_submit_file.sh
+data/usa_house
