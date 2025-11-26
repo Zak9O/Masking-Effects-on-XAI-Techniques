@@ -2,6 +2,13 @@ import pandas as pd
 import numpy as np
 
 
+def save_hierarchy(hierarchy: dict[int, pd.Series], path: str):  # pyright: ignore[reportRedeclaration]
+    hierarchy: pd.DataFrame = pd.DataFrame(hierarchy)
+    hierarchy = hierarchy.sort_values(by=0)  # pyright: ignore[reportArgumentType]
+    hierarchy = hierarchy.drop_duplicates(subset=[0])
+    hierarchy.to_csv(path, index=False, header=False)
+
+
 def generate_hierarchy(values: pd.Series, levels: int) -> dict[int, pd.Series]:
     hierarchy: dict[int, pd.Series] = {}
 
