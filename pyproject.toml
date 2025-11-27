@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "lime>=0.2.0.1",
+    "lime",
     "loguru>=0.7.3",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
@@ -48,3 +48,6 @@ reportUnknownMemberType = "none"
 reportUnknownArgumentType = "none"
 reportAny = "none"
 stubPath = "typings"
+
+[tool.uv.sources]
+lime = { git = "https://github.com/Zak9O/lime" }
