@@ -8,24 +8,13 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "google-genai>=1.46.0",
-    "ipython>=8.37.0",
-    "ipywidgets>=8.1.8",
-    "jupyterlab>=4.4.10",
-    "jupyterlab-lsp>=5.2.0",
-    "jupyterlab-vim>=4.1.4",
-    "kagglehub[pandas-datasets]>=0.3.13",
     "lime>=0.2.0.1",
     "loguru>=0.7.3",
-    "marimo>=0.17.3",
-    "matplotlib>=3.10.6",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "scikit-learn>=1.7.2",
     "scipy>=1.15.3",
-    "seaborn>=0.13.2",
     "shap>=0.49.1",
-    "ucimlrepo>=0.0.7",
 ]
 
 [build-system]
@@ -34,10 +23,19 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "ipython>=8.37.0",
+    "ipywidgets>=8.1.8",
+    "matplotlib>=3.10.6",
+    "seaborn>=0.13.2",
+    "ucimlrepo>=0.0.7",
     "basedpyright>=1.32.1",
     "pandas-stubs>=2.3.2.250926",
     "python-lsp-server>=1.13.1",
     "ruff>=0.14.3",
+    "jupyterlab>=4.4.10",
+    "jupyterlab-lsp>=5.2.0",
+    "jupyterlab-vim>=4.1.4",
+    "kagglehub[pandas-datasets]>=0.3.13",
 ]
 
 [tool.pyright]
