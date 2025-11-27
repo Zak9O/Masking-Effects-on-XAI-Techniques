@@ -9,7 +9,7 @@ resolution-markers = [
 [[package]]
 name = "anjana"
 version = "1.1.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/Zak9O/anjana#c8a0cf2fc14c831f4dad473fb300d8ca582913be" }
 dependencies = [
     { name = "beartype" },
     { name = "docutils" },
@@ -17,10 +17,6 @@ dependencies = [
     { name = "pandas" },
     { name = "pycanon" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/ff/981eea70ea23511841cb3ce7faa9605c474448f48044dbc0c3611dc66328/anjana-1.1.0.tar.gz", hash = "sha256:dde92d538a7c2f736b2e9387758afbbf755af317d0efbd9d374c0bb7b90637ed", size = 16592, upload-time = "2025-01-31T11:22:12.944Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/86/9e46d2573cca18d1aac58f116c44f03e3d4f20e75ae013b87f0aa4f83523/anjana-1.1.0-py3-none-any.whl", hash = "sha256:0e523e401fe3186c927020a0f573181c884659bff29d5cafb7ff7d82f4239c2c", size = 22691, upload-time = "2025-01-31T11:22:11.067Z" },
 ]
 
 [[package]]
@@ -1200,7 +1196,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anjana", specifier = ">=1.1.0" },
+    { name = "anjana", git = "https://github.com/Zak9O/anjana" },
     { name = "ipython", specifier = ">=8.37.0" },
     { name = "ipywidgets", specifier = ">=8.1.8" },
     { name = "jupyterlab", specifier = ">=4.4.10" },

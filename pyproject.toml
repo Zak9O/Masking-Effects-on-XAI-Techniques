@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "anjana>=1.1.0",
+    "anjana",
     "ipython>=8.37.0",
     "ipywidgets>=8.1.8",
     "jupyterlab>=4.4.10",
@@ -41,3 +41,6 @@ reportUnknownMemberType = "none"
 reportUnknownArgumentType = "none"
 reportAny = "none"
 stubPath = "typings"
+
+[tool.uv.sources]
+anjana = { git = "https://github.com/Zak9O/anjana" }
