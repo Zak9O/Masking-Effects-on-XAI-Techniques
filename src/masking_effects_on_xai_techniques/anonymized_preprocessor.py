@@ -22,9 +22,7 @@ def encode(
         if isinstance(first_item, (float, int)):
             continue
 
-        # We assume that each item only occurs once in a hierarchy file across different hieracrhies
-
-        for values in hierarachy.values():
+        for i, values in enumerate(hierarachy.values()):
             if first_item in list(values):
                 try:
                     encoder = OrdinalEncoder(categories=[values.unique().tolist()])
@@ -32,4 +30,6 @@ def encode(
                     break
                 except ValueError:
                     continue
+            if i + 1 == len(hierarachy.values()):
+                raise ValueError("Value not found in hierarchy")
     return df
