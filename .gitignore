@@ -2,7 +2,6 @@
 .vscode
 
 /notebooks/.ipynb_checkpoints
-/src/debug
 /typings/
 
 __pycache__
@@ -14,10 +13,5 @@ data/*/t_closeness
 data/*/clean.csv
 data/*/shap
 data/*/lime
-src/hpc/anonymized
-src/hpc/data
-src/hpc/hierarchies
-src/hpc/hpc
-src/hpc/remote
-src/hpc/tmp_submit_file.sh
 data/usa_house
+debug
