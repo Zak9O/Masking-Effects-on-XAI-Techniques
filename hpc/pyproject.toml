@@ -1,0 +1,13 @@
+[project]
+name = "hpc"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "masking-effects-on-xai-techniques",
+]
+
+[tool.uv.sources]
+masking-effects-on-xai-techniques = { git = "https://github.com/Zak9O/Masking-Effects-on-XAI-Techniques", branch = "anonymization" }
