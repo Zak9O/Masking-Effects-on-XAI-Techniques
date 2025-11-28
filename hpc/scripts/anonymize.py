@@ -222,6 +222,10 @@ if __name__ == "__main__":
         "anonymization_method",
         type=str,
     )
+    _ = parser.add_argument(
+        "k",
+        type=int,
+    )
 
     args = parser.parse_args()
 
@@ -252,7 +256,7 @@ if __name__ == "__main__":
         raise ValueError(f"Unknown anonymization method: {method}")
 
     anonymizer.anonymize(
-        16,
+        args.k,
         20,
         values,
         quasi_identifiers,
