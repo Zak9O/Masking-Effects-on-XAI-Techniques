@@ -8,8 +8,6 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   exit 1
 fi
 
-source ./common_vars.sh
-
 rm tmp_submit_file.sh -f
 
 declare -a methods=("k_anonymity" "t_closeness" "alpha_k_anonymity" "l_diversity")
