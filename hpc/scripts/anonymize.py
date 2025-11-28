@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import os
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -53,7 +54,9 @@ class Anonymizer(ABC):
                 logger.info(f"{self.name}={round(val, 1)} produced an empty dataframe")
                 continue
 
-            df.to_csv(f"{save_dir_path}/{round(val, 2)}.csv", index=False)
+            file_path = f"{save_dir_path}/{round(val, 2)}.csv"
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            df.to_csv(file_path, index=False)
 
     @abstractmethod
     def _anonymize_df(
@@ -226,13 +229,23 @@ if __name__ == "__main__":
         "k",
         type=int,
     )
+    _ = parser.add_argument(
+        "dataset",
+        type=str,
+    )
 
     args = parser.parse_args()
 
     df = pd.read_csv(args.data_path)
 
-    identifiers = ["race"]
-    sensitive_attribute = "income"
+    if args.dataset == "adult":
+        identifiers = ["race"]
+        sensitive_attribute = "income"
+    elif args.dataset == "usa_house":
+        identifiers = []
+        sensitive_attribute = "Price"
+    else:
+        raise ValueError(f"Invalid dataset {args.dataset}")
 
     quasi_identifiers = df.columns.to_list()
     for identifier in identifiers:
