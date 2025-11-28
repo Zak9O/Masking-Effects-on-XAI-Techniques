@@ -3,6 +3,11 @@
 # $2 should be the name of the dataset we consider i.e. adult, usa_house
 # $3 should be the k used for k anonymity
 
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "Usage: $0 <path_to_file> <dataset_name> <k_value>"
+  exit 1
+fi
+
 source ./common_vars.sh
 
 rm tmp_submit_file.sh -f
