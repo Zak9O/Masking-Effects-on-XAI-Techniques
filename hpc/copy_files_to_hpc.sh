@@ -1,14 +1,21 @@
 #!/bin/bash
 
-source ./common_vars.sh
+OUT="./explanation"
+rm -rf $OUT
+mkdir $OUT
 
-rm -rf ./hpc
-mkdir ./hpc
+cp ./README.md ./LSF_submit.sh ./submit.sh $OUT
+cp ./pyp.toml $OUT/pyproject.toml
 
-cp ./common_vars.sh ./LSF_options.sh ./LSF_run.sh ./README.md ./requirements.txt ./setup.sh ./submit.sh ./hpc/
+cp -r ./scripts/ $OUT
 
-cp -r ./scripts/ ./hierarchies/ ./hpc
+if [ "$1" = "all" ]; then
+  mkdir $OUT/data
+  cp -r ../data/adult $OUT/data
+  cp -r ../data/usa_house $OUT/data
+  cp -r ../hierarchies/ $OUT
+fi
 
-scp -i ~/.ssh/id_ed25519 -r hpc s225169@transfer.gbar.dtu.dk:
+mkdir $OUT/logs
 
-# rm -rf ./hpc
+scp -i ~/.ssh/id_ed25519 -r $OUT s225169@transfer.gbar.dtu.dk:

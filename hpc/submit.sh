@@ -5,15 +5,16 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-source ./common_vars.sh
+declare -a methods=("lime" "shap")
 
-declare -a methods=("lime") #("lime" "shap")
+JOB_SUB="./job_submission.sh"
+export JOB_PATH="~/explanation"
 
 function sub {
   for i in "${methods[@]}"; do
     rm tmp_submit_file.sh -f
     echo "Processing method: **$i** on **$1**"
-    export JOB_NAME="${1//\//-}" # Same as file path, but all `/` replaced with `-`
+    export JOB_NAME="${1//\//-}_$(date +%H%M)"
     export LSB_NCPU="1"
     export LSB_MEM="8GB"
     export LSB_TIME_H="24"
@@ -23,13 +24,12 @@ function sub {
       export LSB_MEM="12GB"
     fi
 
-    envsubst < "./LSF_options.sh" >> "tmp_submit_file.sh"
-
     export METHOD="$i"
     export DATA_PATH="$1"
-    envsubst < "./LSF_run.sh" >> "tmp_submit_file.sh"
+    export DATA_OUT_PATH="$JOB_PATH/out/$1"
+    envsubst < "./LSF_submit.sh" >> $JOB_SUB
 
-    bsub < tmp_submit_file.sh
+    bsub < $JOB_SUB
   done
 }
 
