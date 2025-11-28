@@ -7,7 +7,6 @@ rm tmp_submit_file.sh -f
 declare -a methods=("t_closeness" "alpha_k_anonymity" "l_diversity" "k_anonymity")
 
 for i in "${methods[@]}"; do
-# for METHOD in $ANONYMIZATION_METHODS; do
   echo "Processing method: **$i**"
   sed "s/JOB_NAME/$i/g" "./LSF_options.sh" >> "tmp_submit_file.sh"
   sed "s/CHANGE_THIS_METHOD/$i/g" "./LSP_run.sh" >> "tmp_submit_file.sh"
