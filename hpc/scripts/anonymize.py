@@ -56,7 +56,6 @@ class Anonymizer(ABC):
 
             file_path = f"{save_dir_path}/{round(val, 2)}.csv"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            logger.info(f"Df columns {df.columns}")
             if "index" in df.columns:
                 df.to_csv(file_path, index=False)
             else:

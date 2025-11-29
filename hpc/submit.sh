@@ -18,7 +18,7 @@ export JOB_PATH="~/anonymization"
 for i in "${methods[@]}"; do
   rm $JOB_SUB -f
   echo "Processing method: **$i**"
-  export JOB_NAME="${1//\//-}_$(date +%H%M)"
+  export JOB_NAME="$2-$i-$(date +%H%M)"
   export LSB_NCPU="1"
   export LSB_MEM="1GB"
   export LSB_TIME_H="24"
