@@ -318,5 +318,5 @@ if __name__ == "__main__":
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.info(f"Saving importance vector to {args.data_out}")
-    np.save(args.data_out, [(score, "accuracy")] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
+    np.save(args.data_out, [("accuracy", score)] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
     logging.info("Script finished successfully.")

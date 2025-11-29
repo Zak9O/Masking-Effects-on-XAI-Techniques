@@ -12,7 +12,7 @@ export JOB_PATH="~/explanation"
 
 function sub {
   for i in "${methods[@]}"; do
-    rm tmp_submit_file.sh -f
+    rm $JOB_SUB -f
     echo "Processing method: **$i** on **$1**"
     export JOB_NAME="${1//\//-}_$(date +%H%M)"
     export LSB_NCPU="1"
