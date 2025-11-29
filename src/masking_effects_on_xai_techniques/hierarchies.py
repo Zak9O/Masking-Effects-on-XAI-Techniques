@@ -15,7 +15,7 @@ def generate_qcut_hierarchy(
 
     hierarchy[0] = unique
 
-    for i in range(1, levels - 1):
+    for i in range(0, levels - 1):
         if search_for_n:
             bins = _search_for_bins(unique, levels - i)
         else:
@@ -25,10 +25,10 @@ def generate_qcut_hierarchy(
         for j in unique.index:
             current_level_hierarchy.append(bins[j])
 
-        hierarchy[i] = pd.Series(current_level_hierarchy, index=unique.index)
+        hierarchy[i + 1] = pd.Series(current_level_hierarchy, index=unique.index)
         pass
 
-    hierarchy[levels - 1] = pd.Series("*", index=unique.index)
+    hierarchy[levels] = pd.Series("*", index=unique.index)
 
     return hierarchy
 

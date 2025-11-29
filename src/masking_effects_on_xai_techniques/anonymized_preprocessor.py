@@ -31,5 +31,7 @@ def encode(
                 except ValueError:
                     continue
             if i + 1 == len(hierarachy.values()):
-                raise ValueError("Value not found in hierarchy")
+                raise ValueError(
+                    f"Value: {first_item} not found in hierarchy for {column}"
+                )
     return df

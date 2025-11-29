@@ -56,7 +56,11 @@ class Anonymizer(ABC):
 
             file_path = f"{save_dir_path}/{round(val, 2)}.csv"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            df.to_csv(file_path, index=False)
+            logger.info(f"Df columns {df.columns}")
+            if "index" in df.columns:
+                df.to_csv(file_path, index=False)
+            else:
+                df.to_csv(file_path)
         logger.info("Finished anonymization")
 
     @abstractmethod
@@ -77,12 +81,11 @@ class TCloseness(Anonymizer):
         self,
         data: DataFrame,
         hierarchies_path: str,
-        save_dir_path: str,
     ) -> None:
         super().__init__(
             data,
             hierarchies_path,
-            save_dir_path,
+            "t",
         )
 
     def _anonymize_df(
@@ -111,12 +114,11 @@ class AlphaKAnonymity(Anonymizer):
         self,
         data: DataFrame,
         hierarchies_path: str,
-        save_dir_path: str,
     ) -> None:
         super().__init__(
             data,
             hierarchies_path,
-            save_dir_path,
+            "alpha",
         )
 
     def _anonymize_df(
@@ -145,12 +147,11 @@ class LDiversity(Anonymizer):
         self,
         data: DataFrame,
         hierarchies_path: str,
-        save_dir_path: str,
     ) -> None:
         super().__init__(
             data,
             hierarchies_path,
-            save_dir_path,
+            "l",
         )
 
     def _anonymize_df(
@@ -181,12 +182,11 @@ class KAnonymity(Anonymizer):
         self,
         data: DataFrame,
         hierarchies_path: str,
-        save_dir_path: str,
     ) -> None:
         super().__init__(
             data,
             hierarchies_path,
-            save_dir_path,
+            "k",
         )
 
     def _anonymize_df(
@@ -255,16 +255,16 @@ if __name__ == "__main__":
 
     method = args.anonymization_method
     if method == "t_closeness":
-        anonymizer = TCloseness(df, args.hierarchies_path, args.save_dir_path)
+        anonymizer = TCloseness(df, args.hierarchies_path)
         values = list(np.linspace(0.1, 1.0, 10))
     elif method == "alpha_k_anonymity":
-        anonymizer = AlphaKAnonymity(df, args.hierarchies_path, args.save_dir_path)
+        anonymizer = AlphaKAnonymity(df, args.hierarchies_path)
         values = list(np.linspace(0.1, 1.0, 10))
     elif method == "l_diversity":
-        anonymizer = LDiversity(df, args.hierarchies_path, args.save_dir_path)
+        anonymizer = LDiversity(df, args.hierarchies_path)
         values = list(np.linspace(1, 10, 10))
     elif method == "k_anonymity":
-        anonymizer = KAnonymity(df, args.hierarchies_path, args.save_dir_path)
+        anonymizer = KAnonymity(df, args.hierarchies_path)
         values = [2**i for i in range(1, 9)]
     else:
         raise ValueError(f"Unknown anonymization method: {method}")
