@@ -2,6 +2,7 @@ import argparse
 import logging
 import pathlib
 
+import os
 import numpy as np
 import pandas as pd
 import shap
@@ -313,10 +314,7 @@ if __name__ == "__main__":
         logging.error(f"Explainer type '{args.explainer_type}' is not supported.")
         raise NotImplementedError
 
-    output_path = pathlib.Path(args.data_out)
-    output_dir = output_path.parent
-    output_dir.mkdir(parents=True, exist_ok=True)
-
     logging.info(f"Saving importance vector to {args.data_out}")
+    os.makedirs(os.path.dirname(args.data_out), exist_ok=True)
     np.save(args.data_out, [("accuracy", score)] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
     logging.info("Script finished successfully.")

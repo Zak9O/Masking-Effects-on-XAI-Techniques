@@ -14,7 +14,7 @@ function sub {
   for i in "${methods[@]}"; do
     rm $JOB_SUB -f
     echo "Processing method: **$i** on **$1**"
-    export JOB_NAME="${1//\//-}_$(date +%H%M)"
+    export JOB_NAME="${1//\//-}_$i_$(date +%H%M)"
     export LSB_NCPU="1"
     export LSB_MEM="8GB"
     export LSB_TIME_H="24"
@@ -26,7 +26,7 @@ function sub {
 
     export METHOD="$i"
     export DATA_PATH="$1"
-    export DATA_OUT_PATH="$JOB_PATH/out/$1"
+    export DATA_OUT_PATH="out/$1"
     envsubst < "./LSF_submit.sh" >> $JOB_SUB
 
     bsub < $JOB_SUB
