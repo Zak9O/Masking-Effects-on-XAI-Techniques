@@ -57,6 +57,7 @@ class Anonymizer(ABC):
             file_path = f"{save_dir_path}/{round(val, 2)}.csv"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             df.to_csv(file_path, index=False)
+        logger.info("Finished anonymization")
 
     @abstractmethod
     def _anonymize_df(
