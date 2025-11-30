@@ -18,6 +18,14 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
+def standardize_sensitive_attr(y_train, y_test):
+    scaler = StandardScaler()
+    _ = scaler.fit(y_train.values.reshape(-1, 1))
+    y_train = scaler.transform(y_train.values.reshape(-1, 1))
+    y_test = scaler.transform(y_test.values.reshape(-1, 1))
+    return y_train, y_test
+
+
 def _create_MLP(MPL_type: str) -> MLPClassifier | MLPRegressor:
     if MPL_type == "classifier":
         return MLPClassifier(
@@ -108,14 +116,14 @@ def shap_importance(
     logging.info("Identifying numeric features to skip from encoding.")
     for feature in numeric_features:
         # if feature is numeric in df then add to skip_columns
-        d_type = type(df[feature])
-        if d_type is not str:  # pyright: ignore[reportUnnecessaryComparison]
+        d_type = type(df[feature].iloc[0])
+        if d_type is not str:
             skip_columns.append(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
     df = anon_prep.encode(df, hierarchy_path=dataset.hierarchy_path, skip=skip_columns)
 
-    X_train, X_test, y_train, _ = sklearn.model_selection.train_test_split(  # pyright: ignore[reportAttributeAccessIssue]
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(  # pyright: ignore[reportAttributeAccessIssue]
         df.drop([dataset.sensitive_attr], axis=1),
         df[dataset.sensitive_attr],
         test_size=0.4,
@@ -133,7 +141,11 @@ def shap_importance(
     )
 
     clf = _create_MLP(dataset.classifier_type)
-    logging.info("Training MLPClassifier.")
+    logging.info("Training Model.")
+
+    if dataset.classifier_type == "regressor":
+        y_train, y_test = standardize_sensitive_attr(y_train, y_test)
+
     _ = clf.fit(np.array(X_train), y_train)
     score = clf.score(np.array(X_train), y_train)
     logging.info(f"Model training finished. Score: {score}")
@@ -148,7 +160,7 @@ def shap_importance(
             return clf.predict(x)
 
     med = X_train.median().values.reshape((1, X_train.shape[1]))
-    explainer = shap.Explainer(f, med)
+    explainer = shap.KernelExplainer(f, med)
 
     logging.info("Calculating SHAP values.")
     shap_values = explainer(X_test)
@@ -172,9 +184,9 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
             skip_columns.append(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
-    df, encoding_mappings = anon_prep._encode_inner(
+    df, encoding_mappings = anon_prep._encode_inner(  # pyright: ignore[reportPrivateUsage]
         df, hierarchy_path=dataset.hierarchy_path, skip=skip_columns
-    )  # pyright: ignore[reportPrivateUsage]
+    )
 
     X_train, X_test, y_train, y_test = train_test_split(
         df.drop(columns=[dataset.sensitive_attr]),
@@ -209,6 +221,9 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         logging.debug(f"Normalizing feature '{feature}'.")
         normalize_feature(X_train_enc, X_test_enc, feature)
 
+    if dataset.classifier_type == "regressor":
+        y_train, y_test = standardize_sensitive_attr(y_train, y_test)
+
     clf = _create_MLP(dataset.classifier_type)
 
     logging.info("Training MLPClassifier.")
@@ -242,7 +257,7 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
     explainer = lime_tabular.LimeTabularExplainer(
         X_train_np,
         feature_names=X_train.columns,
-        class_names=list(encoding_mappings.values())[-1],
+        class_names=list(encoding_mappings.values()),
         categorical_features=cat_features,
         categorical_names=encoding_mappings,
         kernel_width=3,
@@ -256,9 +271,9 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         explainer,
         X_train_np,
         f,
-        sample_size=15,
+        sample_size=15000,
         num_features=len(X_train.columns),  # We want to consider all features allways
-        num_exps_desired=1,
+        num_exps_desired=1000,
     )
     logging.info("LIME importance calculation finished.")
     return score, importance_vector_sum(sb_pick)
@@ -295,6 +310,11 @@ if __name__ == "__main__":
         f"Arguments parsed: data_path={args.data_path}, data_out={args.data_out}, explainer_type={args.explainer_type}"
     )
 
+    logging.info(f"Reading data from {args.data_path}")
+    df = pd.read_csv(args.data_path)
+    if "index" in df.columns:
+        df = df.drop("index", axis=1)
+
     if args.dataset == "adult":
         numeric_features = ["age", "capital-gain", "capital-loss", "hours-per-week"]
         dataset = Dataset(
@@ -305,15 +325,18 @@ if __name__ == "__main__":
             "classifier",
         )
     elif args.dataset == "usa_house":
-        # dataset = Dataset(name=args.dataset, numeric_features=numeric_features)
-        pass
+        sensitive_attr = "Price"
+        numeric_features = list(df.columns)
+        numeric_features.remove(sensitive_attr)
+        dataset = Dataset(
+            args.dataset,
+            numeric_features,
+            "./hierarchies/usa_house/",
+            sensitive_attr,
+            "regressor",
+        )
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
-
-    logging.info(f"Reading data from {args.data_path}")
-    df = pd.read_csv(args.data_path)
-    if "index" in df.columns:
-        df = df.drop("index", axis=1)
 
     if args.explainer_type == "shap":
         score, importance = shap_importance(df, dataset)
