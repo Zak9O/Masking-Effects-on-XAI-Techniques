@@ -2,6 +2,9 @@ import argparse
 import logging
 import pathlib
 
+import masking_effects_on_xai_techniques.anonymized_preprocessor as anon_prep
+from masking_effects_on_xai_techniques.datasets import Dataset
+
 import os
 import numpy as np
 import pandas as pd
@@ -11,8 +14,19 @@ from lime import submodular_pick
 from lime import lime_tabular
 from pandas import DataFrame
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+
+def _create_MLP(MPL_type: str) -> MLPClassifier | MLPRegressor:
+    if MPL_type == "classifier":
+        return MLPClassifier(
+            solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
+        )
+    else:
+        return MLPRegressor(
+            solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
+        )
 
 
 def _clean_feature_names(features):
@@ -75,49 +89,6 @@ def one_hot_encoding(df: DataFrame, feature: str, encoder) -> DataFrame:
     return df.drop([feature], axis=1).join(df_encoded_part)
 
 
-def _encode_by_order(df: DataFrame, encoding_order: dict[str, list[str]]) -> DataFrame:
-    df = df.copy()
-    logging.info("Applying ordinal encoding.")
-    for column, order in encoding_order.items():
-        logging.debug(f"Encoding column '{column}' with order: {order}")
-        encoder = OrdinalEncoder(categories=[order], dtype=int)
-        df[column] = encoder.fit_transform(df[[column]])
-    logging.info("Ordinal encoding applied successfully.")
-    return df
-
-
-def _encode_by_hierarchy_inner(
-    df: DataFrame,
-    hierarchy_path="./hierarchies/",
-    skip_columns=[],  # pyright: ignore[reportCallInDefaultInitializer]
-) -> tuple[DataFrame, dict[int, list[str]]]:
-    encoding_order = {}
-
-    for column in df.columns:
-        if column == "index" or column in skip_columns:
-            continue
-        hierarachy = dict(pd.read_csv(f"{hierarchy_path}{column}.csv", header=None))
-
-        # We assume that each item only occurs once in a hierarchy file across different hieracrhies
-        first_item = df[column].iloc[0]
-        for values in hierarachy.values():
-            if first_item in list(values):
-                encoding_order[column] = values.unique().tolist()
-                break
-    return _encode_by_order(df, encoding_order), {
-        df.columns.tolist().index(column): order
-        for column, order in encoding_order.items()
-    }
-
-
-def encode_by_hierarchy(
-    df: DataFrame,
-    hierarchy_path="./hierarchies/",
-    skip_columns=[],  # pyright: ignore[reportCallInDefaultInitializer]
-) -> DataFrame:
-    return _encode_by_hierarchy_inner(df, hierarchy_path, skip_columns)[0]
-
-
 def importance_values_to_str(features: list[str], importance) -> list[tuple[str, int]]:
     return [(features[i], importance[i]) for i in np.argsort(-importance)]
 
@@ -128,9 +99,11 @@ def create_one_hot_encoder(df: pd.DataFrame, feature: str) -> OneHotEncoder:
     )
 
 
-def shap_importance(df: pd.DataFrame) -> tuple[float, list[tuple[str, int]]]:
+def shap_importance(
+    df: pd.DataFrame, dataset: Dataset
+) -> tuple[float, list[tuple[str, int]]]:
     logging.info("Calculating SHAP importance values.")
-    numeric_features = ["age", "capital-gain", "capital-loss", "hours-per-week"]
+    numeric_features = dataset.numeric_features
     skip_columns = []
     logging.info("Identifying numeric features to skip from encoding.")
     for feature in numeric_features:
@@ -140,10 +113,13 @@ def shap_importance(df: pd.DataFrame) -> tuple[float, list[tuple[str, int]]]:
             skip_columns.append(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
-    df = encode_by_hierarchy(df, skip_columns=skip_columns)
+    df = anon_prep.encode(df, hierarchy_path=dataset.hierarchy_path, skip=skip_columns)
 
     X_train, X_test, y_train, _ = sklearn.model_selection.train_test_split(  # pyright: ignore[reportAttributeAccessIssue]
-        df.drop(["income"], axis=1), df["income"], test_size=0.4, random_state=0
+        df.drop([dataset.sensitive_attr], axis=1),
+        df[dataset.sensitive_attr],
+        test_size=0.4,
+        random_state=0,
     )
 
     for feature in numeric_features:
@@ -156,36 +132,36 @@ def shap_importance(df: pd.DataFrame) -> tuple[float, list[tuple[str, int]]]:
         f"Data split into training and testing sets. Training set size: {len(X_train)}, Testing set size: {len(X_test)}"
     )
 
-    clf = sklearn.neural_network.MLPClassifier(  # pyright: ignore[reportAttributeAccessIssue]
-        solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
-    )
+    clf = _create_MLP(dataset.classifier_type)
     logging.info("Training MLPClassifier.")
-    clf.fit(np.array(X_train), y_train)
+    _ = clf.fit(np.array(X_train), y_train)
     score = clf.score(np.array(X_train), y_train)
     logging.info(f"Model training finished. Score: {score}")
 
-    def f(x):
-        return clf.predict_proba(x)[:, 1]
+    if dataset.classifier_type == "classifier":
+
+        def f(x):  # pyright: ignore[reportRedeclaration]
+            return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue]
+    else:
+
+        def f(x):
+            return clf.predict(x)
 
     med = X_train.median().values.reshape((1, X_train.shape[1]))
     explainer = shap.Explainer(f, med)
 
-    # TODO: change this
     logging.info("Calculating SHAP values.")
-    logging.warning(
-        "Using only the first 10 instances of the test set for SHAP value calculation."
-    )
     shap_values = explainer(X_test)
 
     importance = np.mean(np.abs(shap_values.values), axis=0)
     logging.info("SHAP importance calculation finished.")
 
-    return score, importance_values_to_str(X_train.columns, importance)
+    return score, importance_values_to_str(X_train.columns, importance)  # pyright: ignore[reportReturnType]
 
 
-def lime_importance(df: pd.DataFrame):
+def lime_importance(df: pd.DataFrame, dataset: Dataset):
     logging.info("Calculating LIME importance values.")
-    numeric_features = ["age", "capital-gain", "capital-loss", "hours-per-week"]
+    numeric_features = dataset.numeric_features
 
     skip_columns = []
     logging.info("Identifying numeric features to skip from encoding.")
@@ -196,10 +172,15 @@ def lime_importance(df: pd.DataFrame):
             skip_columns.append(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
-    df, encoding_mappings = _encode_by_hierarchy_inner(df, skip_columns=skip_columns)
+    df, encoding_mappings = anon_prep._encode_inner(
+        df, hierarchy_path=dataset.hierarchy_path, skip=skip_columns
+    )  # pyright: ignore[reportPrivateUsage]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        df.drop(columns=["income"]), df["income"], test_size=0.4, random_state=0
+        df.drop(columns=[dataset.sensitive_attr]),
+        df[dataset.sensitive_attr],
+        test_size=0.4,
+        random_state=0,
     )
     logging.info(
         f"Data split into training and testing sets. Training set size: {len(X_train)}, Testing set size: {len(X_test)}"
@@ -228,19 +209,27 @@ def lime_importance(df: pd.DataFrame):
         logging.debug(f"Normalizing feature '{feature}'.")
         normalize_feature(X_train_enc, X_test_enc, feature)
 
-    clf = MLPClassifier(
-        solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
-    )
+    clf = _create_MLP(dataset.classifier_type)
+
     logging.info("Training MLPClassifier.")
     _ = clf.fit(X_train_enc, y_train)
     score = clf.score(X_test_enc, y_test)
     logging.info(f"Model training finished. Score: {score}")
 
-    def f(x):
-        x = pd.DataFrame(x, columns=X_train.columns.tolist())
-        for feature, encoder in encoders.items():
-            x = one_hot_encoding(x, feature, encoder)
-        return clf.predict_proba(x).astype(float)
+    if dataset.classifier_type == "classifier":
+
+        def f(x):  # pyright: ignore[reportRedeclaration]
+            x = pd.DataFrame(x, columns=X_train.columns.tolist())
+            for feature, encoder in encoders.items():
+                x = one_hot_encoding(x, feature, encoder)
+            return clf.predict_proba(x).astype(float)  # pyright: ignore[reportAttributeAccessIssue]
+    else:
+
+        def f(x):
+            x = pd.DataFrame(x, columns=X_train.columns.tolist())
+            for feature, encoder in encoders.items():
+                x = one_hot_encoding(x, feature, encoder)
+            return clf.predict(x).astype(float)
 
     cat_features = list(X_train.columns)
     for numeric_feat in numeric_features:
@@ -257,6 +246,9 @@ def lime_importance(df: pd.DataFrame):
         categorical_features=cat_features,
         categorical_names=encoding_mappings,
         kernel_width=3,
+        mode="regression"
+        if dataset.classifier_type != "classifier"
+        else "classification",
     )
 
     logging.info("Running Submodular Pick to get explanations.")
@@ -264,9 +256,9 @@ def lime_importance(df: pd.DataFrame):
         explainer,
         X_train_np,
         f,
-        sample_size=15000,
+        sample_size=15,
         num_features=len(X_train.columns),  # We want to consider all features allways
-        num_exps_desired=1000,
+        num_exps_desired=1,
     )
     logging.info("LIME importance calculation finished.")
     return score, importance_vector_sum(sb_pick)
@@ -293,10 +285,30 @@ if __name__ == "__main__":
         "explainer_type",
         type=str,
     )
+    _ = parser.add_argument(
+        # Can be adult, usa_house
+        "dataset",
+        type=str,
+    )
     args = parser.parse_args()
     logging.info(
         f"Arguments parsed: data_path={args.data_path}, data_out={args.data_out}, explainer_type={args.explainer_type}"
     )
+
+    if args.dataset == "adult":
+        numeric_features = ["age", "capital-gain", "capital-loss", "hours-per-week"]
+        dataset = Dataset(
+            args.dataset,
+            numeric_features,
+            "./hierarchies/adult/",
+            "income",
+            "classifier",
+        )
+    elif args.dataset == "usa_house":
+        # dataset = Dataset(name=args.dataset, numeric_features=numeric_features)
+        pass
+    else:
+        raise ValueError(f"Unknown dataset: {args.dataset}")
 
     logging.info(f"Reading data from {args.data_path}")
     df = pd.read_csv(args.data_path)
@@ -304,9 +316,9 @@ if __name__ == "__main__":
         df = df.drop("index", axis=1)
 
     if args.explainer_type == "shap":
-        score, importance = shap_importance(df)
+        score, importance = shap_importance(df, dataset)
     elif args.explainer_type == "lime":
-        score, importance = lime_importance(df)
+        score, importance = lime_importance(df, dataset)
     elif args.explainer_type == "integrated_gradients":
         logging.warning("Integrated Gradients explainer is not yet implemented.")
         pass
@@ -315,6 +327,8 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     logging.info(f"Saving importance vector to {args.data_out}")
-    os.makedirs(os.path.dirname(args.data_out), exist_ok=True)
+    output_dir = os.path.dirname(args.data_out)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     np.save(args.data_out, [("accuracy", score)] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
     logging.info("Script finished successfully.")
