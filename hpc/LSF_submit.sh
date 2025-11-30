@@ -28,7 +28,8 @@ echo "Running Python script..."
 uv run scripts/importance_vector.py \
   "${DATA_PATH}" \
   "${DATA_OUT_PATH}" \
-  "${METHOD}"
+  "${METHOD}" \
+  "${DATASET}"
 
 echo "=========================================================="
 echo "Job finished on $(date)"
