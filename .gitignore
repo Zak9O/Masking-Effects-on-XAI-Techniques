@@ -13,8 +13,6 @@ data/*/t_closeness
 data/*/clean.csv
 data/*/shap
 data/*/lime
-data/usa_house
 debug
-hpc/hpc
-hpc/explanation
 hpc/anonymization
+hpc/explanation
