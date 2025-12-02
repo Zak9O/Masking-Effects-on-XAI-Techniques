@@ -29,7 +29,7 @@ function sub {
 
     export METHOD="$i"
     export DATA_PATH="$1"
-    export DATA_OUT_PATH="out/$1"
+    export DATA_OUT_PATH="out/$METHOD/$1"
     envsubst < "./LSF_submit.sh" >> $JOB_SUB
 
     bsub < $JOB_SUB
