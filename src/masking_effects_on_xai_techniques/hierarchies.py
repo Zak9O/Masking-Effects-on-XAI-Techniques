@@ -34,9 +34,13 @@ def generate_qcut_hierarchy(
 
 
 def _search_for_bins(values: pd.Series, levels: int) -> pd.Series:
+    iterations = 0
+    max_iterations = 10
     n = levels
     n_old = levels
     while True:
+        if iterations >= max_iterations:
+            raise RuntimeError(f"Iterations exceeded {max_iterations}")
         bins = pd.qcut(values, n, duplicates="drop")
         bins_len = bins.nunique()
         if bins_len == levels:
@@ -46,4 +50,5 @@ def _search_for_bins(values: pd.Series, levels: int) -> pd.Series:
             n *= 2
         elif bins_len > levels:
             n = n - int((n - n_old) / 2)
+        iterations += 1
     return bins
