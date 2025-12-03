@@ -62,7 +62,7 @@ class Anonymizer(ABC):
                     df = df.drop(col, axis=1)
             if self.is_all_features_identical(df, sensitive_attribute):
                 logger.info(f"{self.name}={round(val, 1)} produced a trivial dataframe")
-                break
+                continue
             df.to_csv(file_path, index=False)
         logger.info("Finished anonymization")
 
