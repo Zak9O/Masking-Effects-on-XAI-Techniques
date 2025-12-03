@@ -36,7 +36,7 @@ function sub {
   done
 }
 
-for item in "$1"/*; do
+for item in "$1"*; do
     if [ -e "$item" ] || [ -L "$item" ]; then
         if [ -d "$item" ]; then
           directory="$item"
