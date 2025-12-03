@@ -56,6 +56,10 @@ class Anonymizer(ABC):
 
             file_path = f"{save_dir_path}/{round(val, 2)}.csv"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            for col in df.columns:
+                features = quasi_identifiers + identifiers + [sensitive_attribute]
+                if col not in features:
+                    df = df.drop(col, axis=1)
             df.to_csv(file_path, index=False)
         logger.info("Finished anonymization")
 
@@ -242,6 +246,10 @@ if __name__ == "__main__":
         "dataset",
         type=str,
     )
+    _ = parser.add_argument(
+        "supp_level",
+        type=str,
+    )
 
     args = parser.parse_args()
 
@@ -280,7 +288,7 @@ if __name__ == "__main__":
 
     anonymizer.anonymize(
         args.k,
-        20,
+        args.supp_level,
         values,
         quasi_identifiers,
         identifiers,

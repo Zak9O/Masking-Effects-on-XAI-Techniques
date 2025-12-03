@@ -2,6 +2,7 @@
 # $1 should be the path to the file that should be anonymized
 # $2 should be the name of the dataset we consider i.e. adult, usa_house
 # $3 should be the k used for k anonymity
+# $4 should be the suppression level used
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   echo "Usage: $0 <path_to_file> <dataset_name> <k_value>"
@@ -29,6 +30,7 @@ for i in "${methods[@]}"; do
   export SAVE_DIR_PATH="$JOB_PATH/out/$DATASET/$i"
   export ANONYMIZATION_METHOD=$i
   export K=$3
+  export SUPP_LVL=$4
 
   envsubst < "./LSF_submit.sh" >> $JOB_SUB
 

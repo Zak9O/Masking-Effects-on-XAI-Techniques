@@ -31,7 +31,8 @@ uv run scripts/anonymize.py \
   ${SAVE_DIR_PATH} \
   ${ANONYMIZATION_METHOD} \
   ${K} \
-  ${DATASET}
+  ${DATASET} \
+  ${SUPP_LVL}
 
 echo "=========================================================="
 echo "Job finished on $(date)"
