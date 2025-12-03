@@ -336,7 +336,16 @@ if __name__ == "__main__":
             "regressor",
         )
     else:
-        raise ValueError(f"Unknown dataset: {args.dataset}")
+        sensitive_attr = "disease"
+        num_i = [0,5,6,8]
+        numeric_features = [df.columns[i] for i in num_i]
+        dataset = Dataset(
+            args.dataset,
+            numeric_features,
+            "./hierarchies/cervic_cancer/",
+            sensitive_attr,
+            "classifier",
+        )
 
     if args.explainer_type == "shap":
         score, importance = shap_importance(df, dataset)
