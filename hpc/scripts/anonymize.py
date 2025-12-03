@@ -50,7 +50,7 @@ class Anonymizer(ABC):
             df = self._anonymize_df(
                 k, supp_level, val, identifiers, quasi_identifiers, sensitive_attribute
             )
-            if df.empty or self.is_all_features_identical(df, sensitive_attribute):
+            if df.empty:
                 logger.info(f"{self.name}={round(val, 1)} produced an empty dataframe")
                 continue
 
@@ -60,6 +60,9 @@ class Anonymizer(ABC):
                 features = quasi_identifiers + identifiers + [sensitive_attribute]
                 if col not in features:
                     df = df.drop(col, axis=1)
+            if self.is_all_features_identical(df, sensitive_attribute):
+                logger.info(f"{self.name}={round(val, 1)} produced a trivial dataframe")
+                continue
             df.to_csv(file_path, index=False)
         logger.info("Finished anonymization")
 
