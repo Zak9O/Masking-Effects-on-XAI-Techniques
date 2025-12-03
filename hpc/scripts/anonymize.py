@@ -248,7 +248,7 @@ if __name__ == "__main__":
     )
     _ = parser.add_argument(
         "supp_level",
-        type=str,
+        type=int,
     )
 
     args = parser.parse_args()
