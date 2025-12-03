@@ -245,7 +245,8 @@ if __name__ == "__main__":
         identifiers = []
         sensitive_attribute = "Price"
     else:
-        raise ValueError(f"Invalid dataset {args.dataset}")
+        identifiers = []
+        sensitive_attribute = "disease"
 
     quasi_identifiers = df.columns.to_list()
     for identifier in identifiers:

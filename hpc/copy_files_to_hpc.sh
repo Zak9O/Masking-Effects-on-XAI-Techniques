@@ -13,6 +13,7 @@ if [ "$1" = "all" ]; then
   mkdir $OUT/data
   cp ../data/adult/clean.csv $OUT/data/adult.csv
   cp ../data/usa_house/clean.csv $OUT/data/usa_house.csv
+  cp ../data/cervic_cancer/clean.csv $OUT/data/cervic_cancer.csv
   cp -r ../hierarchies/ $OUT/hierarchies
 fi
 
