@@ -50,17 +50,26 @@ class Anonymizer(ABC):
             df = self._anonymize_df(
                 k, supp_level, val, identifiers, quasi_identifiers, sensitive_attribute
             )
-            if df.empty:
+            if df.empty or self.is_all_features_identical(df, sensitive_attribute):
                 logger.info(f"{self.name}={round(val, 1)} produced an empty dataframe")
                 continue
 
             file_path = f"{save_dir_path}/{round(val, 2)}.csv"
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            if "index" in df.columns:
-                df.to_csv(file_path, index=False)
-            else:
-                df.to_csv(file_path)
+            df.to_csv(file_path, index=False)
         logger.info("Finished anonymization")
+
+    def is_all_features_identical(self, df, sensitive_attribute) -> bool:
+        n_values = 0
+        features = list(df.columns)
+        for feat in [sensitive_attribute, "index"]:
+            try:
+                features.remove(feat)
+            except Exception:
+                pass
+        for feat in features:
+            n_values += df[feat].nunique()
+        return n_values == len(features)
 
     @abstractmethod
     def _anonymize_df(
