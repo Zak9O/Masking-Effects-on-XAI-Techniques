@@ -62,7 +62,7 @@ class Anonymizer(ABC):
                     df = df.drop(col, axis=1)
             if self.is_all_features_identical(df, sensitive_attribute):
                 logger.info(f"{self.name}={round(val, 1)} produced a trivial dataframe")
-                continue
+                break
             df.to_csv(file_path, index=False)
         logger.info("Finished anonymization")
 
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         values = list(np.linspace(0.1, 1.0, 10))
     elif method == "l_diversity":
         anonymizer = LDiversity(df, args.hierarchies_path)
-        values = list(np.linspace(1, 10, 10))
+        values = list(np.linspace(2, 10, 9))
     elif method == "k_anonymity":
         anonymizer = KAnonymity(df, args.hierarchies_path)
         values = [2**i for i in range(1, 9)]
