@@ -9,7 +9,6 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "anjana",
-    "imblearn>=0.0",
     "ipython>=8.37.0",
     "ipywidgets>=8.1.8",
     "jupyterlab>=4.4.10",
@@ -30,6 +29,7 @@ dev = [
     "pandas-stubs>=2.3.2.250926",
     "python-lsp-server>=1.13.1",
     "ruff>=0.14.3",
+    "imblearn>=0.0",
 ]
 
 [tool.pyright]

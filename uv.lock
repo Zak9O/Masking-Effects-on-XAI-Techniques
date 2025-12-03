@@ -1204,7 +1204,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anjana" },
-    { name = "imblearn" },
     { name = "ipython" },
     { name = "ipywidgets" },
     { name = "jupyterlab" },
@@ -1218,6 +1217,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "imblearn" },
     { name = "pandas-stubs" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -1226,7 +1226,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anjana", git = "https://github.com/Zak9O/anjana" },
-    { name = "imblearn", specifier = ">=0.0" },
     { name = "ipython", specifier = ">=8.37.0" },
     { name = "ipywidgets", specifier = ">=8.1.8" },
     { name = "jupyterlab", specifier = ">=4.4.10" },
@@ -1240,6 +1239,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = ">=1.32.1" },
+    { name = "imblearn", specifier = ">=0.0" },
     { name = "pandas-stubs", specifier = ">=2.3.2.250926" },
     { name = "python-lsp-server", specifier = ">=1.13.1" },
     { name = "ruff", specifier = ">=0.14.3" },
