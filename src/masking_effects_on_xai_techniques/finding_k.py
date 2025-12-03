@@ -42,7 +42,11 @@ def train_models(anon_data: list[DataFrame], target: str, hierarchies_path):
             X, y, test_size=0.4, random_state=0
         )
         clf = MLPClassifier(
-            solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
+            solver="sgd",
+            alpha=1e-5,
+            hidden_layer_sizes=(10),
+            random_state=1,
+            max_iter=1000,
         )
         _ = clf.fit(X_train, y_train)
         score = clf.score(X_test, y_test)
