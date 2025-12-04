@@ -4,6 +4,7 @@ from scipy import stats
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
+from typing import Optional
 
 
 class Explanation:
@@ -121,20 +122,40 @@ class PlotCreator:
 
             self.datasets[dataset] = Dataset(dataset_path)
 
-    def plot_heatmap(self) -> None:
+    def plot_heatmap(
+        self,
+        datasets: Optional[list[str]] = None,
+        methods: Optional[list[str]] = None,
+        models: Optional[list[str]] = None,
+    ) -> None:
         # Collect Kendall-tau series across datasets/methods/models
+        # If a parameter is None or empty, include all values for that filter.
         rows = []
         labels = []
         max_len = 0
 
         for dataset_name, dataset in self.datasets.items():
+            # apply dataset filter if provided (non-empty)
+            if datasets:
+                if dataset_name not in datasets:
+                    continue
+
             kendal_taus = dataset.get_kendal_taus()
-            for method, models in kendal_taus.items():
-                for model_name, kt_list in models.items():
-                    # extract correlation values from Kendalltau results
+            for method, model_map in kendal_taus.items():
+                # apply method filter if provided (non-empty)
+                if methods:
+                    if method not in methods:
+                        continue
+
+                for model_name, kt_list in model_map.items():
+                    # apply model filter if provided (non-empty)
+                    if models:
+                        if model_name not in models:
+                            continue
+
+                    # extract p-values from Kendalltau results (0..1)
                     vals = []
                     for kt in kt_list:
-                        # prefer p-value for plotting; fall back to numeric value if not present
                         pval = getattr(kt, "pvalue", None)
                         if pval is not None:
                             try:
