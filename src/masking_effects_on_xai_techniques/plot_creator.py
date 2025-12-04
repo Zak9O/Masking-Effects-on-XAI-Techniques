@@ -3,7 +3,6 @@ import masking_effects_on_xai_techniques.utils as utils
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from scipy import stats
 from copy import copy
 
@@ -24,11 +23,34 @@ class Explanation:
 
 
 class Comparer:
-    def __init__(self, name: str, path: str, ascending=False) -> None:
-        self.name = name
-        paths = self.get_abs_paths(path, ascending)
-        self.explanations = self.load_explanations(paths)
-        self.kendaltau = self.calcualte_kendaltau()
+    ANONYMIZATION_MODELS = [
+        ("t", "t_closeness"),
+        ("l", "l_diversity"),
+        ("k", "k_anonymity"),
+        ("a", "alpha_k_anonymity"),
+    ]
+
+    EXPLANATION_METHODS = ["shap", "lime"]
+
+    def __init__(self, dataset: str, root: str, skip: list[str] | None = None) -> None:
+        self.dataset = dataset
+        self.explanations: dict[str, dict[str, list[Explanation]]] = {}
+        self.kendaltau: dict[str, dict[str, list[object]]] = {}
+
+        if skip is None:
+            skip = []
+
+        self.models = [
+            (id, model) for id, model in self.ANONYMIZATION_MODELS if id not in skip
+        ]
+        for id, model in self.models:
+            for method in self.EXPLANATION_METHODS:
+                paths = self.get_abs_paths(
+                    f"{root}/data/{self.dataset}/{method}/{model}", id in ["l", "k"]
+                )
+                rankings = self.load_explanations(paths)
+                self.explanations[method][id] = rankings
+                self.kendaltau[method][id] = self.calcualte_kendaltau(rankings)
 
     def load_explanations(self, paths: list[str]) -> list[Explanation]:
         explanations = []
@@ -57,10 +79,10 @@ class Comparer:
         paths = list(reversed(paths))
         return paths
 
-    def calcualte_kendaltau(self):
+    def calcualte_kendaltau(self, rankings: list[Explanation]):
         kendaltau = []
-        model_ranking = self.explanations[0].get_ranking()
-        for e in self.explanations[1:]:
+        model_ranking = rankings[0].get_ranking()
+        for e in rankings[1:]:
             m_rnk, rnk = self.make_compatible(model_ranking, e.get_ranking())
             kendaltau.append(stats.kendalltau(m_rnk, rnk))
         return kendaltau
@@ -79,254 +101,232 @@ class Comparer:
         ref = self.add_missing_categories(rnk, ref)
         return (ref, rnk)
 
-    def plot_kendaltau(self) -> None:
-        statistics = [n.correlation for n in self.kendaltau]
-        pvalues = [n.pvalue for n in self.kendaltau]
-        run_labels = [e.name for e in self.explanations[1:]]
+    def plot_kendaltau(self, method: str) -> None:
+        a = self.kendaltau[""]
+        b = a[""]
+        b
+        for id, model in self.models:
+            statistics = [n.correlation for n in self.kendaltau[method][id]]  # pyright: ignore[reportAttributeAccessIssue]
+            pvalues = [n.pvalue for n in self.kendaltau[method][id]]  # pyright: ignore[reportAttributeAccessIssue]
+            run_labels = [e.name for e in self.explanations[method][id][1:]]
 
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
-        ax1.bar(run_labels, statistics, color="skyblue")
-        ax1.set_ylabel("Kendall's Tau Statistic ($\tau$)")
-        ax1.set_title(
-            f"Kendall's Tau Correlation and Significance (vs. Baseline Run) {self.name}"
-        )
-        ax1.grid(axis="y", linestyle="--", alpha=0.6)
-        ax1.set_ylim(-1.1, 1.1)
+            ax1.bar(run_labels, statistics, color="skyblue")
+            ax1.set_ylabel("Kendall's Tau Statistic ($\tau$)")
+            ax1.set_title(
+                f"Kendall's Tau Correlation and Significance (vs. Baseline Run) for {self.dataset} and {model}"
+            )
+            ax1.grid(axis="y", linestyle="--", alpha=0.6)
+            ax1.set_ylim(-1.1, 1.1)
 
-        ax2.plot(
-            run_labels, pvalues, color="red", marker="o", linestyle="-", linewidth=2
-        )
-        ax2.set_ylabel("P-value")
-        ax2.set_xlabel("anonymity-value")
-        ax2.grid(axis="y", linestyle="--", alpha=0.6)
-        ax2.set_ylim(-0.05, 1.05)
+            ax2.plot(
+                run_labels, pvalues, color="red", marker="o", linestyle="-", linewidth=2
+            )
+            ax2.set_ylabel("P-value")
+            ax2.set_xlabel("anonymity-value")
+            ax2.grid(axis="y", linestyle="--", alpha=0.6)
+            ax2.set_ylim(-0.05, 1.05)
 
-        ax2.axhline(
-            0.05,
-            color="black",
-            linestyle="--",
-            linewidth=1.5,
-            label="Significance Threshold (0.05)",
-        )
-        ax2.legend()
+            ax2.axhline(
+                0.05,
+                color="black",
+                linestyle="--",
+                linewidth=1.5,
+                label="Significance Threshold (0.05)",
+            )
+            ax2.legend()
 
-        plt.tight_layout()
-        plt.show()
+            plt.tight_layout()
+            plt.show()
 
-    def plot_line(self) -> None:
-        # TODO: Multiple features with same color. Fix this if relevant
-        fig, ax = plt.subplots(figsize=(12, 8))
-        model_names = [e.name for e in self.explanations]
-        y_locs = range(len(model_names))
+    def plot_line(self, method: str) -> None:
+        for id, model in self.models:
+            explanations = self.explanations[method][id]
 
-        all_items = set(item for e in self.explanations for item in e.get_ranking())
+            # Create a figure and an axes.
+            # TODO: Multiple features with same color. Fix this if relevant
+            fig, ax = plt.subplots(figsize=(12, 8))
+            model_names = [e.name for e in explanations]
+            y_locs = range(len(model_names))
 
-        for item in all_items:
-            ranks = []
+            all_items = set(item for e in explanations for item in e.get_ranking())
 
-            y_vals = []
-            for i, e in enumerate(self.explanations):
-                ranking = e.get_ranking()
-                if item in ranking:
-                    ranks.append(ranking.index(item) + 1)
+            for item in all_items:
+                ranks = []
 
-                    y_vals.append(i)
-                else:
-                    ranks.append(None)
-                    y_vals.append(i)
+                y_vals = []
+                for i, e in enumerate(explanations):
+                    ranking = e.get_ranking()
+                    if item in ranking:
+                        ranks.append(ranking.index(item) + 1)
 
-            p = ax.plot(ranks, y_vals, marker="o", linewidth=2, alpha=0.8)
-            color = p[0].get_color()
+                        y_vals.append(i)
+                    else:
+                        ranks.append(None)
+                        y_vals.append(i)
 
-            if ranks[0] is not None:
-                ax.text(
-                    ranks[0],
-                    -0.2,
-                    item,
-                    ha="left",
-                    va="bottom",
-                    color=color,
-                    fontweight="bold",
-                    rotation=45,
-                    fontsize=9,
-                )
+            ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
+            ax.set_yticks(y_locs)
+            ax.set_yticklabels(model_names)
+            ax.invert_yaxis()
 
-            if ranks[-1] is not None:
-                ax.text(
-                    ranks[-1],
-                    len(model_names) - 0.8,
-                    item,
-                    ha="right",
-                    va="top",
-                    color=color,
-                    fontweight="bold",
-                    rotation=45,
-                    fontsize=9,
-                )
+            ax.set_xlim(0, 12)
 
-        ax.set_yticks(y_locs)
-        ax.set_yticklabels(model_names)
-        ax.invert_yaxis()
+            ax.set_xticks(range(1, len(all_items) + 1))
+            ax.set_xlabel("Rank")
 
-        # Powerpoint magic happening here. Making room between labels and x-axis
-        ax.set_ylim(len(model_names) + 1, -2)
-        ax.set_xlim(0, 12)
+            ax.grid(axis="x", linestyle="--", alpha=0.5)
+            for s in ["top", "right", "left"]:
+                ax.spines[s].set_visible(False)
 
-        ax.set_xticks(range(1, len(all_items) + 1))
-        ax.set_xlabel("Rank")
-
-        ax.grid(axis="x", linestyle="--", alpha=0.5)
-        for s in ["top", "right", "left"]:
-            ax.spines[s].set_visible(False)
-
-        plt.title(f"Feature Rank Comparison: {self.name}")
-        plt.tight_layout()
-        plt.show()
-        # return ax, plt
-
-    def plot_boxes(self) -> None:
-        if not self.explanations:
-            print("No explanations to plot.")
-            return
-
-        all_features = set()
-        for exp in self.explanations:
-            all_features.update(exp.get_ranking())
-        sorted_features = sorted(list(all_features))
-
-        cmap = plt.get_cmap("Set3")
-
-        if len(sorted_features) > 12:
-            cmap = plt.get_cmap("tab20")
-
-        feature_to_color = {
-            f: cmap(i / max(1, len(sorted_features) - 1))
-            for i, f in enumerate(sorted_features)
-        }
-
-        num_rows = len(self.explanations)
-        max_rank = max(len(exp.get_ranking()) for exp in self.explanations)
-
-        fig, ax = plt.subplots(figsize=(12, 0.8 * num_rows + 1))
-
-        for row_idx, exp in enumerate(self.explanations):
-            ranking = exp.get_ranking()
-            y_coord = num_rows - 1 - row_idx
-
-            for rank_idx, feature_name in enumerate(ranking):
-                color = feature_to_color.get(feature_name, (0.5, 0.5, 0.5, 1.0))
-
-                rect = patches.Rectangle(
-                    (rank_idx, y_coord),
-                    width=1,
-                    height=1,
-                    linewidth=0.5,
-                    edgecolor="grey",
-                    facecolor=color,
-                )
-                ax.add_patch(rect)
-
-        ax.set_xlim(0, max_rank)
-        ax.set_ylim(0, num_rows)
-
-        ax.axhline(y=num_rows - 1, color="black", linewidth=3)
-
-        ax.set_xticks(np.arange(max_rank) + 0.5)
-        ax.set_xticklabels(np.arange(1, max_rank + 1))
-        ax.set_xlabel("Rank (Importance Order)")
-
-        row_names = [e.name for e in self.explanations]
-        ax.set_yticks(np.arange(num_rows) + 0.5)
-        ax.set_yticklabels(row_names[::-1])
-
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        ax.tick_params(axis="both", which="both", length=0)
-
-        legend_handles = [
-            patches.Patch(color=feature_to_color[f], label=f) for f in sorted_features
-        ]
-        ax.legend(
-            handles=legend_handles,
-            title="Features",
-            bbox_to_anchor=(1.02, 1),
-            loc="upper left",
-            borderaxespad=0.0,
-        )
-
-        plt.title(f"Feature Rank Comparison: {self.name}")
-        plt.tight_layout()
-        plt.show()
+            plt.title(f"Feature Rank Comparison: {self.dataset} for {model}")
+            plt.tight_layout()
+            plt.show()
 
 
-def plot_comparison(
-    comparisors: list[Comparer],
-    series_names: list[str],
-    title: str,
-) -> None:
-    run_labels = [e.name for e in comparisors[0].explanations[1:]]
-    statistics_list = [
-        [n.correlation for n in comparisor.kendaltau] for comparisor in comparisors
-    ]
-    pvalues_list = [
-        [n.pvalue for n in comparisor.kendaltau] for comparisor in comparisors
-    ]
-
-    if len(statistics_list) != len(pvalues_list) or len(statistics_list) != len(
-        series_names
-    ):
-        raise ValueError(
-            "Input lists (statistics, pvalues, names) must have the same length."
-        )
-
-    n_series = len(statistics_list)
-    x = np.arange(len(run_labels))
-    width = 0.8 / n_series  # Dynamically calculate bar width
-
-    # Define distinct colors/markers for plotting
-    colors = ["skyblue", "orange", "lightgreen", "salmon"]
-    markers = ["o", "s", "^", "D"]
-
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
-
-    # --- Subplot 1: Grouped Bar Chart ---
-    for i, (kendall_tau, name) in enumerate(zip(statistics_list, series_names)):
-        # Calculate offset to center the group of bars
-        offset = (i - (n_series - 1) / 2) * width
-        ax1.bar(
-            x + offset, kendall_tau, width, label=name, color=colors[i % len(colors)]
-        )
-
-    ax1.set_ylabel("Kendall's Tau Statistic ($\\tau$)")
-    ax1.set_title(f"Kendall's Tau Correlation Comparison for {title}")
-    ax1.legend()
-    ax1.grid(axis="y", linestyle="--", alpha=0.6)
-    ax1.set_ylim(-1.1, 1.1)
-
-    # --- Subplot 2: Line Chart ---
-    for i, (pvals, name) in enumerate(zip(pvalues_list, series_names)):
-        ax2.plot(
-            x,
-            pvals,
-            color=colors[i % len(colors)],
-            marker=markers[i % len(markers)],
-            linestyle="--" if i > 0 else "-",  # Dashed for secondary lines
-            linewidth=2,
-            label=f"{name} p-value",
-        )
-
-    ax2.axhline(
-        0.05, color="black", linestyle="--", linewidth=1.5, label="Significance (0.05)"
-    )
-
-    ax2.set_ylabel("P-value")
-    ax2.set_xlabel("anonymity-value")
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(run_labels)
-    ax2.grid(axis="y", linestyle="--", alpha=0.6)
-    ax2.set_ylim(-0.05, 1.05)
-    ax2.legend()
-
-    plt.tight_layout()
-    plt.show()
+#     def plot_boxes(self) -> None:
+#         if not self.explanations:
+#             print("No explanations to plot.")
+#             return
+#
+#         all_features = set()
+#         for exp in self.explanations:
+#             all_features.update(exp.get_ranking())
+#         sorted_features = sorted(list(all_features))
+#
+#         cmap = plt.get_cmap("Set3")
+#
+#         if len(sorted_features) > 12:
+#             cmap = plt.get_cmap("tab20")
+#
+#         feature_to_color = {
+#             f: cmap(i / max(1, len(sorted_features) - 1))
+#             for i, f in enumerate(sorted_features)
+#         }
+#
+#         num_rows = len(self.explanations)
+#         max_rank = max(len(exp.get_ranking()) for exp in self.explanations)
+#
+#         fig, ax = plt.subplots(figsize=(12, 0.8 * num_rows + 1))
+#
+#         for row_idx, exp in enumerate(self.explanations):
+#             ranking = exp.get_ranking()
+#             y_coord = num_rows - 1 - row_idx
+#
+#             for rank_idx, feature_name in enumerate(ranking):
+#                 color = feature_to_color.get(feature_name, (0.5, 0.5, 0.5, 1.0))
+#
+#                 rect = patches.Rectangle(
+#                     (rank_idx, y_coord),
+#                     width=1,
+#                     height=1,
+#                     linewidth=0.5,
+#                     edgecolor="grey",
+#                     facecolor=color,
+#                 )
+#                 ax.add_patch(rect)
+#
+#         ax.set_xlim(0, max_rank)
+#         ax.set_ylim(0, num_rows)
+#
+#         ax.axhline(y=num_rows - 1, color="black", linewidth=3)
+#
+#         ax.set_xticks(np.arange(max_rank) + 0.5)
+#         ax.set_xticklabels(np.arange(1, max_rank + 1))
+#         ax.set_xlabel("Rank (Importance Order)")
+#
+#         row_names = [e.name for e in self.explanations]
+#         ax.set_yticks(np.arange(num_rows) + 0.5)
+#         ax.set_yticklabels(row_names[::-1])
+#
+#         for spine in ax.spines.values():
+#             spine.set_visible(False)
+#         ax.tick_params(axis="both", which="both", length=0)
+#
+#         legend_handles = [
+#             patches.Patch(color=feature_to_color[f], label=f) for f in sorted_features
+#         ]
+#         ax.legend(
+#             handles=legend_handles,
+#             title="Features",
+#             bbox_to_anchor=(1.02, 1),
+#             loc="upper left",
+#             borderaxespad=0.0,
+#         )
+#
+#         plt.title(f"Feature Rank Comparison: {self.name}")
+#         plt.tight_layout()
+#         plt.show()
+#
+#
+# def plot_comparison(
+#     comparisors: list[Comparer],
+#     series_names: list[str],
+#     title: str,
+# ) -> None:
+#     run_labels = [e.name for e in comparisors[0].explanations[1:]]
+#     statistics_list = [
+#         [n.correlation for n in comparisor.kendaltau] for comparisor in comparisors
+#     ]
+#     pvalues_list = [
+#         [n.pvalue for n in comparisor.kendaltau] for comparisor in comparisors
+#     ]
+#
+#     if len(statistics_list) != len(pvalues_list) or len(statistics_list) != len(
+#         series_names
+#     ):
+#         raise ValueError(
+#             "Input lists (statistics, pvalues, names) must have the same length."
+#         )
+#
+#     n_series = len(statistics_list)
+#     x = np.arange(len(run_labels))
+#     width = 0.8 / n_series  # Dynamically calculate bar width
+#
+#     # Define distinct colors/markers for plotting
+#     colors = ["skyblue", "orange", "lightgreen", "salmon"]
+#     markers = ["o", "s", "^", "D"]
+#
+#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+#
+#     # --- Subplot 1: Grouped Bar Chart ---
+#     for i, (kendall_tau, name) in enumerate(zip(statistics_list, series_names)):
+#         # Calculate offset to center the group of bars
+#         offset = (i - (n_series - 1) / 2) * width
+#         ax1.bar(
+#             x + offset, kendall_tau, width, label=name, color=colors[i % len(colors)]
+#         )
+#
+#     ax1.set_ylabel("Kendall's Tau Statistic ($\\tau$)")
+#     ax1.set_title(f"Kendall's Tau Correlation Comparison for {title}")
+#     ax1.legend()
+#     ax1.grid(axis="y", linestyle="--", alpha=0.6)
+#     ax1.set_ylim(-1.1, 1.1)
+#
+#     # --- Subplot 2: Line Chart ---
+#     for i, (pvals, name) in enumerate(zip(pvalues_list, series_names)):
+#         ax2.plot(
+#             x,
+#             pvals,
+#             color=colors[i % len(colors)],
+#             marker=markers[i % len(markers)],
+#             linestyle="--" if i > 0 else "-",  # Dashed for secondary lines
+#             linewidth=2,
+#             label=f"{name} p-value",
+#         )
+#
+#     ax2.axhline(
+#         0.05, color="black", linestyle="--", linewidth=1.5, label="Significance (0.05)"
+#     )
+#
+#     ax2.set_ylabel("P-value")
+#     ax2.set_xlabel("anonymity-value")
+#     ax2.set_xticks(x)
+#     ax2.set_xticklabels(run_labels)
+#     ax2.grid(axis="y", linestyle="--", alpha=0.6)
+#     ax2.set_ylim(-0.05, 1.05)
+#     ax2.legend()
+#
+#     plt.tight_layout()
+#     plt.show()
