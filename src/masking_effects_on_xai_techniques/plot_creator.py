@@ -36,6 +36,9 @@ class Comparer:
         self.dataset = dataset
         self.explanations: dict[str, dict[str, list[Explanation]]] = {}
         self.kendaltau: dict[str, dict[str, list[object]]] = {}
+        for method in self.EXPLANATION_METHODS:
+            self.explanations[method] = {}
+            self.kendaltau[method] = {}
 
         if skip is None:
             skip = []
@@ -43,8 +46,8 @@ class Comparer:
         self.models = [
             (id, model) for id, model in self.ANONYMIZATION_MODELS if id not in skip
         ]
-        for id, model in self.models:
-            for method in self.EXPLANATION_METHODS:
+        for method in self.EXPLANATION_METHODS:
+            for id, model in self.models:
                 paths = self.get_abs_paths(
                     f"{root}/data/{self.dataset}/{method}/{model}", id in ["l", "k"]
                 )
@@ -57,7 +60,7 @@ class Comparer:
         for path in paths:
             array = np.load(path)
             name = os.path.basename(path).split(".csv", 1)[0]
-            accuracy = array[0][0]
+            accuracy = float(array[0][1])
             importance = array[1:]
             explanations.append(Explanation(name, accuracy, importance))
         return explanations
@@ -102,9 +105,6 @@ class Comparer:
         return (ref, rnk)
 
     def plot_kendaltau(self, method: str) -> None:
-        a = self.kendaltau[""]
-        b = a[""]
-        b
         for id, model in self.models:
             statistics = [n.correlation for n in self.kendaltau[method][id]]  # pyright: ignore[reportAttributeAccessIssue]
             pvalues = [n.pvalue for n in self.kendaltau[method][id]]  # pyright: ignore[reportAttributeAccessIssue]
@@ -140,6 +140,51 @@ class Comparer:
             plt.tight_layout()
             plt.show()
 
+    def plot_accuracy(self, method: str) -> None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        max_n = 0
+
+        for id, model_name in self.models:
+            explanations = self.explanations[method][id]
+
+            accuracies = [e.accuracy for e in explanations]
+            n_values = range(1, len(accuracies) + 1)
+
+            ax.plot(n_values, accuracies, marker="o", label=model_name)
+
+            max_n = max(max_n, len(accuracies))
+
+        ax.set_xlabel("N")
+        ax.set_ylabel("Accuracy")
+        ax.set_title(f"Accuracy vs. N for {self.dataset} using {method}")
+        ax.set_xticks(range(1, max_n + 1))
+        ax.set_xlim(0.5, max_n + 0.5)
+        ax.set_ylim(0, 1.05)
+        ax.grid(axis="y", linestyle="--", alpha=0.7)
+        ax.legend(title="Anonymization Model")
+        plt.tight_layout()
+        plt.show()
+
+    def plot_accuracy2(self, method: str) -> None:
+        for id, model in self.models:
+            explanations = self.explanations[method][id]
+
+            names = [e.name for e in explanations]
+            accuracies = [e.accuracy for e in explanations]
+
+            plt.figure(figsize=(10, 6))
+            plt.plot(names, accuracies, marker="o")
+            plt.xlabel("Explanation Name")
+            plt.ylabel("Accuracy")
+            plt.title(
+                f"Accuracy vs. Explanation Name for {self.dataset} and {model} using {method}"
+            )
+            plt.xticks(rotation=45, ha="right")
+            plt.ylim(0, 1)  # Accuracy is between 0 and 1
+            plt.grid(axis="y", linestyle="--", alpha=0.7)
+            plt.tight_layout()
+            plt.show()
+
     def plot_line(self, method: str) -> None:
         for id, model in self.models:
             explanations = self.explanations[method][id]
@@ -165,6 +210,7 @@ class Comparer:
                     else:
                         ranks.append(None)
                         y_vals.append(i)
+                ax.plot(ranks, y_locs, marker="o", linestyle="-", label=item)
 
             ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
             ax.set_yticks(y_locs)
