@@ -29,7 +29,11 @@ def standardize_sensitive_attr(y_train, y_test):
 def _create_MLP(MPL_type: str) -> MLPClassifier | MLPRegressor:
     if MPL_type == "classifier":
         return MLPClassifier(
-            solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
+            solver="sgd",
+            alpha=1e-5,
+            hidden_layer_sizes=(10),
+            random_state=1,
+            max_iter=2000,
         )
     else:
         return MLPRegressor(
@@ -333,11 +337,11 @@ if __name__ == "__main__":
             numeric_features,
             "./hierarchies/usa_house/",
             sensitive_attr,
-            "regressor",
+            "classifier",
         )
     else:
         sensitive_attr = "disease"
-        num_i = [0,5,6,8]
+        num_i = [0, 5, 6, 8]
         numeric_features = [df.columns[i] for i in num_i]
         dataset = Dataset(
             args.dataset,
