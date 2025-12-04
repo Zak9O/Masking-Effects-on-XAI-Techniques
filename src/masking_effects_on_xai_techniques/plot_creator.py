@@ -243,7 +243,20 @@ class Comparer:
             ax2 = ax.twinx()
             accuracies = [e.accuracy for e in explanations]
             ax2.set_yticks(y_locs)
-            ax2.set_yticklabels([f"{acc:.2f}" for acc in accuracies])
+            # Generate new yticklabels
+            formatted_accuracies = []
+            for j in range(len(accuracies)):
+                label = f"{accuracies[j]:.2f}"
+                formatted_accuracies.append(label)
+            ax2.set_yticklabels(formatted_accuracies)
+
+            # Apply visual indicators for significant accuracy changes
+            for j, label_obj in enumerate(ax2.get_yticklabels()):
+                if j > 0 and abs(accuracies[j] - accuracies[j - 1]) > 0.02:
+                    label_obj.set_color("red")
+                    label_obj.set_weight("bold")
+                    label_obj.set_fontsize("large")  # Make it larger
+
             ax2.set_ylabel("Model Accuracy")
             ax2.invert_yaxis()
             ax2.set_ylim(ax.get_ylim())
@@ -268,6 +281,6 @@ class Comparer:
         )
 
         fig.tight_layout(
-            rect=[0, 0, 0.9, 0.96]
+            rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
         )  # Adjust rect to make space for the global legend
         plt.show()
