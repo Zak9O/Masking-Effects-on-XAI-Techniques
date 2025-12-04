@@ -1,7 +1,6 @@
 from pandas import DataFrame
 from anjana.anonymity import k_anonymity
 from masking_effects_on_xai_techniques import anonymized_preprocessor as anon_prep
-from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -30,7 +29,7 @@ def generate_k_anonymity_data(
     return anon_data
 
 
-def train_models(anon_data: list[DataFrame], target: str, hierarchies_path):
+def train_models(anon_data: list[DataFrame], target: str, hierarchies_path: str, clf):
     models = []
     scores = []
     for df in anon_data:
@@ -40,13 +39,6 @@ def train_models(anon_data: list[DataFrame], target: str, hierarchies_path):
         X = df.drop(columns=[target])
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.4, random_state=0
-        )
-        clf = MLPClassifier(
-            solver="sgd",
-            alpha=1e-5,
-            hidden_layer_sizes=(10),
-            random_state=1,
-            max_iter=1000,
         )
         _ = clf.fit(X_train, y_train)
         score = clf.score(X_test, y_test)
