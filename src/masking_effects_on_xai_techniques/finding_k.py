@@ -48,7 +48,7 @@ def train_models(anon_data: list[DataFrame], target: str, hierarchies_path: str,
     return models, scores
 
 
-def plot_k_vs_score(scores, k_list: None | list[int] = None):
+def plot_k_vs_score(scores, k_list: None | list[int] = None, y_log=True):
     if not k_list:
         k_list = [2**n for n in range(1, 9)]
     df = pd.DataFrame({"k_value": k_list, "Score": scores})
@@ -57,7 +57,8 @@ def plot_k_vs_score(scores, k_list: None | list[int] = None):
 
     plt.plot(df["k_value"], df["Score"], marker="o", linestyle="-", color="blue")
 
-    plt.xscale("log", base=2)
+    if y_log:
+        plt.xscale("log", base=2)
 
     plt.xlabel("k Value")
     plt.ylabel("Score")
