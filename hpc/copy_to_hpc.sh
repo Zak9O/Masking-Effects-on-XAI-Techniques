@@ -16,6 +16,7 @@ if [ "$1" = "all" ]; then
 
     for dataset in "${datasets[@]}"; do
       mkdir -p $OUT/data/$dataset
+      cp -r ../data/$dataset/clean.csv $OUT/data/$dataset/
       for anon_type in "${anonymity_types[@]}"; do
         cp -r ../data/$dataset/$anon_type $OUT/data/$dataset/
       done
