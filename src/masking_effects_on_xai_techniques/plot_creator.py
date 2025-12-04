@@ -225,6 +225,15 @@ class Comparer:
             ax.grid(axis="x", linestyle="--", alpha=0.5)
             for s in ["top", "right", "left"]:
                 ax.spines[s].set_visible(False)
+            ax2 = ax.twinx()
+            accuracies = [e.accuracy for e in explanations]
+            ax2.set_yticks(y_locs)  # Align ticks with the primary y-axis
+            ax2.set_yticklabels(
+                [f"{acc:.2f}" for acc in accuracies]
+            )  # Display formatted accuracies
+            ax2.set_ylabel("Model Accuracy")  # Label the new axis
+            ax2.invert_yaxis()  # Keep y-axis inversion consistent
+            ax2.set_ylim(ax.get_ylim())  # Crucial: Match Y-limits of the primary axis
 
             plt.title(f"Feature Rank Comparison: {self.dataset} for {model}")
             plt.tight_layout()
