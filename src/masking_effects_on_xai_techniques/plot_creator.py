@@ -186,12 +186,18 @@ class Comparer:
             plt.show()
 
     def plot_line(self, method: str) -> None:
-        for id, model in self.models:
+        # Create a single figure with 2x2 subplots
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(20, 15))
+        axes = axes.flatten()  # Flatten the 2x2 array for easy iteration
+
+        fig.suptitle(
+            f"Feature Rank Comparison for {self.dataset} using {method}", fontsize=16
+        )
+
+        for i, (id, model) in enumerate(self.models):
+            ax = axes[i]  # Get the current subplot axis
             explanations = self.explanations[method][id]
 
-            # Create a figure and an axes.
-            # TODO: Multiple features with same color. Fix this if relevant
-            fig, ax = plt.subplots(figsize=(12, 8))
             model_names = [e.name for e in explanations]
             y_locs = range(len(model_names))
 
@@ -199,42 +205,69 @@ class Comparer:
 
             for item in all_items:
                 ranks = []
-
                 y_vals = []
-                for i, e in enumerate(explanations):
+                for j, e in enumerate(explanations):
                     ranking = e.get_ranking()
                     if item in ranking:
                         ranks.append(ranking.index(item) + 1)
-
-                        y_vals.append(i)
+                        y_vals.append(j)
                     else:
                         ranks.append(None)
-                        y_vals.append(i)
+                        y_vals.append(j)
                 ax.plot(ranks, y_locs, marker="o", linestyle="-", label=item)
 
-            ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
+            ax.legend(
+                bbox_to_anchor=(1.05, 1),
+                loc="upper left",
+                borderaxespad=0.0,
+                fontsize="small",
+            )
+
             ax.set_yticks(y_locs)
             ax.set_yticklabels(model_names)
             ax.invert_yaxis()
 
-            ax.set_xlim(0, 12)
+            # Calculate the maximum rank for the current subplot
+            max_rank_for_subplot = 0
+            for e in explanations:
+                max_rank_for_subplot = max(max_rank_for_subplot, len(e.get_ranking()))
 
-            ax.set_xticks(range(1, len(all_items) + 1))
+            ax.set_xlim(0, max_rank_for_subplot + 1)
+            ax.set_xticks(range(1, max_rank_for_subplot + 1))
             ax.set_xlabel("Rank")
 
             ax.grid(axis="x", linestyle="--", alpha=0.5)
             for s in ["top", "right", "left"]:
                 ax.spines[s].set_visible(False)
+
             ax2 = ax.twinx()
             accuracies = [e.accuracy for e in explanations]
-            ax2.set_yticks(y_locs)  # Align ticks with the primary y-axis
-            ax2.set_yticklabels(
-                [f"{acc:.2f}" for acc in accuracies]
-            )  # Display formatted accuracies
-            ax2.set_ylabel("Model Accuracy")  # Label the new axis
-            ax2.invert_yaxis()  # Keep y-axis inversion consistent
-            ax2.set_ylim(ax.get_ylim())  # Crucial: Match Y-limits of the primary axis
+            ax2.set_yticks(y_locs)
+            ax2.set_yticklabels([f"{acc:.2f}" for acc in accuracies])
+            ax2.set_ylabel("Model Accuracy")
+            ax2.invert_yaxis()
+            ax2.set_ylim(ax.get_ylim())
 
-            plt.title(f"Feature Rank Comparison: {self.dataset} for {model}")
-            plt.tight_layout()
-            plt.show()
+            ax.set_title(f"Model: {model}")
+
+        # Create a single legend for the entire figure
+        handles, labels = [], []
+        for ax in axes:
+            for handle, label in zip(*ax.get_legend_handles_labels()):
+                if label not in labels:
+                    handles.append(handle)
+                    labels.append(label)
+            ax.get_legend().remove()  # Remove individual subplot legends
+        fig.legend(
+            handles,
+            labels,
+            loc="upper right",
+            bbox_to_anchor=(1.0, 0.95),
+            title="Features",
+            fontsize="small",
+        )
+
+        fig.tight_layout(
+            rect=[0, 0, 0.9, 0.96]
+        )  # Adjust rect to make space for the global legend
+        plt.show()
