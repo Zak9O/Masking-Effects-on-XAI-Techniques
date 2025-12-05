@@ -86,11 +86,10 @@ def importance_vector_sum(submoduler_exp) -> list[tuple[str, float]]:
     return summed_list_sorted
 
 
-def normalize_feature(train: DataFrame, test: DataFrame, feature: str) -> None:
+def normalize_feature(train: DataFrame, feature: str) -> StandardScaler:
     scaler = StandardScaler()
     _ = scaler.fit(train[[feature]])
-    train[feature] = scaler.transform(train[[feature]])
-    test[feature] = scaler.transform(test[[feature]])
+    return scaler
 
 
 def one_hot_encoding(df: DataFrame, feature: str, encoder) -> DataFrame:
@@ -134,11 +133,15 @@ def shap_importance(
         random_state=0,
     )
 
+    numeric_encoders = {}
+
     for feature in numeric_features:
         if feature not in skip_columns:
             continue
         logging.info(f"Normalizing feature '{feature}'")
-        normalize_feature(X_train, X_test, feature)
+        numeric_encoders[feature] = normalize_feature(X_train, feature)
+        X_train[feature] = numeric_encoders[feature].transform(X_train[[feature]])
+        X_test[feature] = numeric_encoders[feature].transform(X_test[[feature]])
 
     logging.info(
         f"Data split into training and testing sets. Training set size: {len(X_train)}, Testing set size: {len(X_test)}"
@@ -218,12 +221,17 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         X_test_enc = one_hot_encoding(X_test_enc, feature, encoder)
 
     # Scale numeric values and one hot encode categorical features
+    numeric_encoders = {}
     logging.info("Normalizing numeric features.")
     for feature in numeric_features:
         if feature not in skip_columns:
             continue
         logging.debug(f"Normalizing feature '{feature}'.")
-        normalize_feature(X_train_enc, X_test_enc, feature)
+        numeric_encoders[feature] = normalize_feature(X_train_enc, feature)
+        X_train_enc[feature] = numeric_encoders[feature].transform(
+            X_train_enc[[feature]]
+        )
+        X_test_enc[feature] = numeric_encoders[feature].transform(X_test_enc[[feature]])
 
     if dataset.classifier_type == "regressor":
         y_train, y_test = standardize_sensitive_attr(y_train, y_test)
@@ -241,6 +249,10 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
             x = pd.DataFrame(x, columns=X_train.columns.tolist())
             for feature, encoder in encoders.items():
                 x = one_hot_encoding(x, feature, encoder)
+            for feature in numeric_features:
+                if feature not in skip_columns:
+                    continue
+                x[feature] = numeric_encoders[feature].transform(x[[feature]])
             return clf.predict_proba(x).astype(float)  # pyright: ignore[reportAttributeAccessIssue]
     else:
 
