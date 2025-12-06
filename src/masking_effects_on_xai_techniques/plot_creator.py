@@ -140,7 +140,7 @@ class Comparer:
             plt.tight_layout()
             plt.show()
 
-    def plot_accuracy(self, method: str) -> None:
+    def plot_accuracy(self, method: str, baseline: float | None = None) -> None:
         fig, ax = plt.subplots(figsize=(10, 6))
         max_n = 0
 
@@ -159,8 +159,35 @@ class Comparer:
         ax.set_title(f"Accuracy vs. N for {self.dataset} using {method}")
         ax.set_xticks(range(1, max_n + 1))
         ax.set_xlim(0.5, max_n + 0.5)
-        ax.set_ylim(0, 1.05)
+
+        # Default y-limits for accuracy (0..1). Expand if baseline is outside.
+        default_low, default_high = 0.0, 1.05
+        low, high = default_low, default_high
+        if baseline is not None:
+            # Ensure baseline is numeric
+            try:
+                b = float(baseline)
+            except Exception:
+                b = None
+            else:
+                if b < low:
+                    low = max(b - 0.05, b - abs(0.05))
+                if b > high:
+                    high = b + 0.05
+
+        ax.set_ylim(low, high)
         ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+        # Draw baseline horizontal dashed line if provided
+        if baseline is not None and isinstance(baseline, (int, float)):
+            ax.axhline(
+                baseline,
+                color="black",
+                linestyle="--",
+                linewidth=1.5,
+                label=f"Share of most common target class ({baseline:.2f})",
+            )
+
         ax.legend(title="Anonymization Model")
         plt.tight_layout()
         plt.show()
@@ -202,8 +229,11 @@ class Comparer:
             y_locs = range(len(model_names))
 
             all_items = set(item for e in explanations for item in e.get_ranking())
+            # Use a deterministic ordering for colors/legend and exactly 20 colors
+            all_items_list = sorted(all_items)
+            cmap = plt.get_cmap("tab20")  # tab20 provides 20 distinct colors
 
-            for item in all_items:
+            for idx, item in enumerate(all_items_list):
                 ranks = []
                 y_vals = []
                 for j, e in enumerate(explanations):
@@ -214,7 +244,10 @@ class Comparer:
                     else:
                         ranks.append(None)
                         y_vals.append(j)
-                ax.plot(ranks, y_locs, marker="o", linestyle="-", label=item)
+                color = cmap(idx % 20)
+                ax.plot(
+                    ranks, y_locs, marker="o", linestyle="-", label=item, color=color
+                )
 
             ax.legend(
                 bbox_to_anchor=(1.05, 1),

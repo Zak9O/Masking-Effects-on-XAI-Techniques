@@ -77,12 +77,14 @@ class Dataset:
         return kendal_taus
 
     def _compute_kendal_tau(
-        self, model_ranking, rankings: list[Explanation]
+        self, model_ranking: list[str], rankings: list[Explanation]
     ) -> list[object]:
         kendaltau = []
         for e in rankings:
-            m_rnk, rnk = self._make_compatible(model_ranking, e.get_ranking())
-            kendaltau.append(stats.kendalltau(m_rnk, rnk))
+            if len(e.get_ranking()) == 1:
+                continue
+            m_rnk, rnk = self._make_compatible(e.get_ranking(), model_ranking)
+            kendaltau.append(stats.kendalltau(m_rnk, rnk, alternative="greater"))
         return kendaltau
 
     def _add_missing_categories(self, ref: list[str], rnk: list[str]) -> list[str]:
@@ -95,9 +97,7 @@ class Dataset:
     def _make_compatible(
         self, ref: list[str], rnk: list[str]
     ) -> tuple[list[str], list[str]]:
-        rnk = self._add_missing_categories(ref, rnk)
-        ref = self._add_missing_categories(rnk, ref)
-        return (ref, rnk)
+        return (ref, rnk[: len(ref)])
 
 
 class PlotCreator:
@@ -193,9 +193,13 @@ class PlotCreator:
         )
         ax.set_xlabel("Anonymization Level")
         ax.set_ylabel("Dataset-Method-Model")
+        if methods and len(methods) == 1:
+            plt.title(f"Kendall Tau p-values for {methods[0]}")
+        else:
+            plt.title("Kendall Tau p-values")
         plt.tight_layout()
         plt.show()
 
 
-# a = PlotCreator(["usa_house", "cervic_cancer"], "./data/")
-# a.plot_heatmap()
+# pl = PlotCreator(["usa_house","cervic_cancer", "adult"], "./data/")
+# pl.plot_heatmap(methods=['shap'])
