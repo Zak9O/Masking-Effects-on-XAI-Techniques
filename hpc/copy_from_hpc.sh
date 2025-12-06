@@ -1,6 +1,6 @@
 #!/bin/sh
-mkdir -p tmp
-scp -r -i ~/.ssh/id_ed25519 "s225169@transfer.gbar.dtu.dk:~/explanation/out/*" tmp/
+mv $WHOME/Downloads/out/ tmp
+# scp -r -i ~/.ssh/id_ed25519 "s225169@transfer.gbar.dtu.dk:~/explanation/out/*" tmp/
 
 datasets=("adult" "usa_house" "cervic_cancer")
 
