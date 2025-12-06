@@ -2,6 +2,7 @@ import argparse
 import logging
 import pathlib
 
+import masking_effects_on_xai_techniques.anjana_utils as utils
 import masking_effects_on_xai_techniques.anonymized_preprocessor as anon_prep
 from masking_effects_on_xai_techniques.datasets import Dataset
 
@@ -108,6 +109,15 @@ def create_one_hot_encoder(df: pd.DataFrame, feature: str) -> OneHotEncoder:
     return OneHotEncoder(sparse_output=False, handle_unknown="ignore").fit(
         df[[feature]]
     )
+
+
+def create_hierachy(quasi_identifiers: list[str], hierarchy_path: str):
+    hierarachies = {}
+    for feat in quasi_identifiers:
+        hierarachy = dict(pd.read_csv(f"{hierarchy_path}{feat}.csv", header=None))
+        hierarachies[feat] = hierarachy
+
+    return hierarachies
 
 
 def shap_importance(
@@ -332,16 +342,23 @@ if __name__ == "__main__":
         df = df.drop("index", axis=1)
 
     if args.dataset == "adult":
+        qi = list(df.columns)
+        sensitive_attr = "income"
+        qi.remove(sensitive_attr)
+
         numeric_features = ["age", "capital-gain", "capital-loss", "hours-per-week"]
         dataset = Dataset(
             args.dataset,
             numeric_features,
             "./hierarchies/adult/",
-            "income",
+            sensitive_attr,
             "classifier",
+            qi,
         )
     elif args.dataset == "usa_house":
+        qi = list(df.columns)
         sensitive_attr = "Price"
+        qi.remove(sensitive_attr)
         numeric_features = list(df.columns)
         numeric_features.remove(sensitive_attr)
         dataset = Dataset(
@@ -350,9 +367,12 @@ if __name__ == "__main__":
             "./hierarchies/usa_house/",
             sensitive_attr,
             "classifier",
+            qi,
         )
     else:
+        qi = list(df.columns)
         sensitive_attr = "disease"
+        qi.remove(sensitive_attr)
         num_i = [0, 5, 6, 8]
         numeric_features = [df.columns[i] for i in num_i]
         dataset = Dataset(
@@ -361,15 +381,22 @@ if __name__ == "__main__":
             "./hierarchies/cervic_cancer/",
             sensitive_attr,
             "classifier",
+            qi,
         )
+
+    transform_n, transform_n_max = utils.get_transformation(
+        df,
+        dataset.quasi_identifiers,
+        create_hierachy(dataset.quasi_identifiers, dataset.hierarchy_path),
+    )
+    logging.info(
+        f"Considering dataset that has been generalized {round(transform_n / transform_n_max, 1) * 100}%"
+    )
 
     if args.explainer_type == "shap":
         score, importance = shap_importance(df, dataset)
     elif args.explainer_type == "lime":
         score, importance = lime_importance(df, dataset)
-    elif args.explainer_type == "integrated_gradients":
-        logging.warning("Integrated Gradients explainer is not yet implemented.")
-        pass
     else:
         logging.error(f"Explainer type '{args.explainer_type}' is not supported.")
         raise NotImplementedError
@@ -378,5 +405,13 @@ if __name__ == "__main__":
     output_dir = os.path.dirname(args.data_out)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    np.save(args.data_out, [("accuracy", score)] + importance)  # pyright: ignore[reportPossiblyUnboundVariable, reportArgumentType]
+    np.save(
+        args.data_out,
+        [
+            ("accuracy", float(score)),
+            ("transform_n", float(transform_n)),
+            ("transform_n_max", float(transform_n_max)),
+        ]
+        + importance,
+    )
     logging.info("Script finished successfully.")
