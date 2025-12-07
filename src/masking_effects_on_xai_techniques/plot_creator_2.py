@@ -12,7 +12,9 @@ class Explanation:
         array = np.load(path)
         self.name = os.path.basename(path).split(".csv", 1)[0]
         self.accuracy = float(array[0][1])
-        importance = array[1:]
+        self.transform_n = int(float(array[1][1]))
+        self.transform_n_max = int(float(array[2][1]))
+        importance = array[3:]
         self._ranking_values = [float(x[1]) for x in importance if float(x[1]) > 0]
         self._ranking = [
             x[0] for i, x in enumerate(importance) if i < len(self._ranking_values)

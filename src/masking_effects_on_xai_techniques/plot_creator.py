@@ -9,7 +9,12 @@ from copy import copy
 
 class Explanation:
     def __init__(
-        self, name: str, accuracy: float, importance: list[tuple[str, float]]
+        self,
+        name: str,
+        accuracy: float,
+        importance: list[tuple[str, float]],
+        transform_n: int,
+        transform_n_max: int,
     ) -> None:
         self.name = name
         self.accuracy = accuracy
@@ -17,6 +22,8 @@ class Explanation:
         self._ranking = [
             x[0] for i, x in enumerate(importance) if i < len(self._ranking_values)
         ]
+        self.transform_n = transform_n
+        self.transform_n_max = transform_n_max
 
     def get_ranking(self) -> list[str]:
         return self._ranking
@@ -59,10 +66,19 @@ class Comparer:
         explanations = []
         for path in paths:
             array = np.load(path)
+            if array[1][0] != "transform_n":
+                # delete the path
+                print(f"Deleting old file at {path}")
+                os.remove(path)
+                continue
             name = os.path.basename(path).split(".csv", 1)[0]
             accuracy = float(array[0][1])
-            importance = array[1:]
-            explanations.append(Explanation(name, accuracy, importance))
+            transform_n = int(float(array[1][1]))
+            transform_n_max = int(float(array[2][1]))
+            importance = array[3:]
+            explanations.append(
+                Explanation(name, accuracy, importance, transform_n, transform_n_max)
+            )
         return explanations
 
     def get_abs_paths(self, path: str, ascending: bool) -> list[str]:
@@ -275,22 +291,18 @@ class Comparer:
 
             ax2 = ax.twinx()
             accuracies = [e.accuracy for e in explanations]
+            generalization_levels = [
+                round(100 * e.transform_n / e.transform_n_max) for e in explanations
+            ]
             ax2.set_yticks(y_locs)
-            # Generate new yticklabels
-            formatted_accuracies = []
+            # Generate new yticklabels with both accuracy and generalization level
+            formatted_labels = []
             for j in range(len(accuracies)):
-                label = f"{accuracies[j]:.2f}"
-                formatted_accuracies.append(label)
-            ax2.set_yticklabels(formatted_accuracies)
+                label = f"{accuracies[j]:.2f} ({generalization_levels[j]}%)"
+                formatted_labels.append(label)
+            ax2.set_yticklabels(formatted_labels)
 
-            # Apply visual indicators for significant accuracy changes
-            for j, label_obj in enumerate(ax2.get_yticklabels()):
-                if j > 0 and abs(accuracies[j] - accuracies[j - 1]) > 0.02:
-                    label_obj.set_color("red")
-                    label_obj.set_weight("bold")
-                    label_obj.set_fontsize("large")  # Make it larger
-
-            ax2.set_ylabel("Model Accuracy")
+            ax2.set_ylabel("Model Accuracy (Generalization Level)")
             ax2.invert_yaxis()
             ax2.set_ylim(ax.get_ylim())
 
@@ -316,4 +328,156 @@ class Comparer:
         fig.tight_layout(
             rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
         )  # Adjust rect to make space for the global legend
+        plt.show()
+
+    def plot_unique_counts(self, method: str) -> None:
+        """
+        Plot the number of unique elements in each feature for k_anonymity model.
+        Features are arranged according to their ranking in the explanations.
+        X-axis shows feature rankings, and unique counts are displayed as text at each point.
+        """
+        import pandas as pd
+
+        # Only plot for k_anonymity model
+        id = "k"
+        model = "k_anonymity"
+
+        # Check if k_anonymity exists in the models
+        if not any(m_id == id for m_id, _ in self.models):
+            print(f"Model '{model}' not found in the available models.")
+            return
+
+        explanations = self.explanations[method][id]
+
+        # Filter out explanations with name="clean"
+        explanations = [e for e in explanations if e.name != "clean"]
+
+        if not explanations:
+            print("No explanations available after filtering out 'clean'.")
+            return
+
+        # Create figure with single subplot
+        fig, ax = plt.subplots(figsize=(15, 10))
+        fig.suptitle(
+            f"Unique Value Counts per Feature for {self.dataset} using {method} and {model}",
+            fontsize=16,
+        )
+
+        model_names = [e.name for e in explanations]
+        y_locs = range(len(model_names))
+
+        # Get all unique features across all explanations
+        all_items = set(item for e in explanations for item in e.get_ranking())
+        all_items_list = sorted(all_items)
+        cmap = plt.get_cmap("tab20")
+
+        # Calculate maximum rank for x-axis limits
+        max_rank = max(len(e.get_ranking()) for e in explanations)
+
+        # For each explanation, load the corresponding dataframe and count unique values
+        for idx, item in enumerate(all_items_list):
+            ranks = []
+            y_vals = []
+            unique_counts_for_annotation = []
+
+            for j, e in enumerate(explanations):
+                ranking = e.get_ranking()
+
+                # Check if item is in this ranking
+                if item not in ranking:
+                    continue
+
+                # Get the rank (1-indexed)
+                rank = ranking.index(item) + 1
+
+                # Determine the path to load the dataframe
+                if e.name == "clean":
+                    df_path = f"./data/{self.dataset}/clean.csv"
+                else:
+                    # e.name is a number
+                    df_path = f"./data/{self.dataset}/{model}/{e.name}.csv"
+
+                # Convert to absolute path
+                base_dir = Path(__file__).parent.parent.parent
+                abs_df_path = (base_dir / df_path).resolve()
+
+                # Load the dataframe
+                try:
+                    df = pd.read_csv(abs_df_path)
+
+                    # Check if the feature exists in the dataframe
+                    if item in df.columns:
+                        # Count unique values for this feature
+                        n_unique = df[item].nunique()
+                        ranks.append(rank)
+                        y_vals.append(j)
+                        unique_counts_for_annotation.append(n_unique)
+                    else:
+                        print(f"Feature '{item}' not found in {abs_df_path}")
+                except Exception as e_error:
+                    print(f"Error loading {abs_df_path}: {e_error}")
+
+            if not ranks:
+                continue
+
+            color = cmap(idx % 20)
+            ax.plot(ranks, y_vals, marker="o", linestyle="-", label=item, color=color)
+
+            # Annotate each point with the unique count
+            for rank, y_val, count in zip(ranks, y_vals, unique_counts_for_annotation):
+                ax.text(
+                    rank,
+                    y_val,
+                    str(count),
+                    fontsize=8,
+                    ha="center",
+                    va="bottom",
+                    bbox=dict(
+                        boxstyle="round,pad=0.3",
+                        facecolor=color,
+                        alpha=0.3,
+                        edgecolor="none",
+                    ),
+                )
+
+        ax.legend(
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+            borderaxespad=0.0,
+            fontsize="small",
+            title="Features",
+        )
+
+        ax.set_yticks(y_locs)
+        ax.set_yticklabels(model_names)
+        ax.invert_yaxis()
+
+        ax.set_xlim(0, max_rank + 1)
+        ax.set_xticks(range(1, max_rank + 1))
+        ax.set_xlabel("Feature Rank")
+        ax.set_ylabel("Anonymization Level")
+
+        ax.grid(axis="x", linestyle="--", alpha=0.5)
+        for s in ["top", "right"]:
+            ax.spines[s].set_visible(False)
+
+        # Add accuracy on the right y-axis
+        ax2 = ax.twinx()
+        accuracies = [e.accuracy for e in explanations]
+        ax2.set_yticks(y_locs)
+        formatted_accuracies = [f"{acc:.2f}" for acc in accuracies]
+        ax2.set_yticklabels(formatted_accuracies)
+
+        # Highlight significant accuracy changes
+        for j, label_obj in enumerate(ax2.get_yticklabels()):
+            if j > 0 and abs(accuracies[j] - accuracies[j - 1]) > 0.02:
+                label_obj.set_color("red")
+                label_obj.set_fontweight("bold")
+                label_obj.set_fontsize("large")
+
+        ax2.set_ylabel("Model Accuracy")
+        ax2.invert_yaxis()
+        ax2.set_ylim(ax.get_ylim())
+
+        plt.tight_layout()
         plt.show()
