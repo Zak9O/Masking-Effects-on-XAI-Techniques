@@ -1,6 +1,6 @@
 #!/bin/sh
-mkdir -p tmp
-scp -r -i ~/.ssh/id_ed25519 "s225169@transfer.gbar.dtu.dk:~/anonymization/out/*" tmp/
+# mkdir -p tmp
+# scp -r -i ~/.ssh/id_ed25519 "s225169@transfer.gbar.dtu.dk:~/anonymization/out/*" tmp/
 
 for dataset_folder in tmp/*; do
     if [ -d "$dataset_folder" ]; then
