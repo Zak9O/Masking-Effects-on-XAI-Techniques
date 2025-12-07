@@ -29,7 +29,8 @@ uv run scripts/importance_vector.py \
   "${DATA_PATH}" \
   "${DATA_OUT_PATH}" \
   "${METHOD}" \
-  "${DATASET}"
+  "${DATASET}" \
+  "${CLASSIFIER_TYPE}"
 
 echo "=========================================================="
 echo "Job finished on $(date)"

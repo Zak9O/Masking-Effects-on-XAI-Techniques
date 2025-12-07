@@ -1,6 +1,7 @@
 #!/bin/sh
 # $1 is path to folder with data 
 # $2 is the type of dataset: adult, usa_hosue
+# $3 type of the classifier to use  : MLP, linear, forest
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <directory_path>"
@@ -12,6 +13,7 @@ declare -a methods=("lime" "shap")
 JOB_SUB="./job_submission.sh"
 export JOB_PATH="~/explanation"
 export DATASET="$2"
+export CLASSIFIER_TYPE="$3"
 
 function sub {
   for i in "${methods[@]}"; do
@@ -29,7 +31,7 @@ function sub {
 
     export METHOD="$i"
     export DATA_PATH="$1"
-    export DATA_OUT_PATH="out/$METHOD/$1"
+    export DATA_OUT_PATH="out/$CLASSIFIER_TYPE/$METHOD/$1"
     envsubst < "./LSF_submit.sh" >> $JOB_SUB
 
     bsub < $JOB_SUB

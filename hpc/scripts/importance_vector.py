@@ -11,11 +11,13 @@ import numpy as np
 import pandas as pd
 import shap
 import sklearn
-from lime import submodular_pick
-from lime import lime_tabular
+from lime import submodular_pick  # pyright: ignore[reportMissingModuleSource]
+from lime import lime_tabular  # pyright: ignore[reportMissingModuleSource]
 from pandas import DataFrame
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import RidgeClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
@@ -27,8 +29,10 @@ def standardize_sensitive_attr(y_train, y_test):
     return y_train, y_test
 
 
-def _create_MLP(MPL_type: str) -> MLPClassifier | MLPRegressor:
-    if MPL_type == "classifier":
+def _create_classifier(
+    classifier_type: str,
+) -> MLPClassifier | RidgeClassifier | RandomForestClassifier:
+    if classifier_type == "MLP":
         return MLPClassifier(
             solver="sgd",
             alpha=1e-5,
@@ -36,10 +40,12 @@ def _create_MLP(MPL_type: str) -> MLPClassifier | MLPRegressor:
             random_state=1,
             max_iter=2000,
         )
+    elif classifier_type == "forest":
+        return RandomForestClassifier()
+    elif classifier_type == "linear":
+        return RidgeClassifier()
     else:
-        return MLPRegressor(
-            solver="sgd", alpha=1e-5, hidden_layer_sizes=(10), random_state=1
-        )
+        raise ValueError(f"{classifier_type} is not a valid model")
 
 
 def _clean_feature_names(features):
@@ -157,11 +163,8 @@ def shap_importance(
         f"Data split into training and testing sets. Training set size: {len(X_train)}, Testing set size: {len(X_test)}"
     )
 
-    clf = _create_MLP(dataset.classifier_type)
+    clf = _create_classifier(dataset.classifier_type)
     logging.info("Training Model.")
-
-    if dataset.classifier_type == "regressor":
-        y_train, y_test = standardize_sensitive_attr(y_train, y_test)
 
     _ = clf.fit(np.array(X_train), y_train)
     score = clf.score(np.array(X_train), y_train)
@@ -243,10 +246,7 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         )
         X_test_enc[feature] = numeric_encoders[feature].transform(X_test_enc[[feature]])
 
-    if dataset.classifier_type == "regressor":
-        y_train, y_test = standardize_sensitive_attr(y_train, y_test)
-
-    clf = _create_MLP(dataset.classifier_type)
+    clf = _create_classifier(dataset.classifier_type)
 
     logging.info("Training MLPClassifier.")
     _ = clf.fit(X_train_enc, y_train)
@@ -287,9 +287,7 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         categorical_features=cat_features,
         categorical_names=encoding_mappings,
         kernel_width=3,
-        mode="regression"
-        if dataset.classifier_type != "classifier"
-        else "classification",
+        mode="classification",
     )
 
     logging.info("Running Submodular Pick to get explanations.")
@@ -331,6 +329,11 @@ if __name__ == "__main__":
         "dataset",
         type=str,
     )
+    _ = parser.add_argument(
+        # Can be adult, usa_house
+        "classifier_type",
+        type=str,
+    )
     args = parser.parse_args()
     logging.info(
         f"Arguments parsed: data_path={args.data_path}, data_out={args.data_out}, explainer_type={args.explainer_type}"
@@ -352,7 +355,7 @@ if __name__ == "__main__":
             numeric_features,
             "./hierarchies/adult/",
             sensitive_attr,
-            "classifier",
+            args.classifier_type,
             qi,
         )
     elif args.dataset == "usa_house":
@@ -366,7 +369,7 @@ if __name__ == "__main__":
             numeric_features,
             "./hierarchies/usa_house/",
             sensitive_attr,
-            "classifier",
+            args.classifier_type,
             qi,
         )
     else:
@@ -380,7 +383,7 @@ if __name__ == "__main__":
             numeric_features,
             "./hierarchies/cervic_cancer/",
             sensitive_attr,
-            "classifier",
+            args.classifier_type,
             qi,
         )
 
