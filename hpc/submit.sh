@@ -18,8 +18,8 @@ export CLASSIFIER_TYPE="$3"
 function sub {
   for i in "${methods[@]}"; do
     rm $JOB_SUB -f
-    echo "Processing method: **$i** on **$1**"
-    export JOB_NAME="${1//\//-}-$i-$(date +%H%M)"
+    echo "Processing method: **$i** on **$1** with **$CLASSIFIER_TYPE**"
+    export JOB_NAME="${1//\//-}-$CLASSIFIER_TYPE-$i-$(date +%H%M)"
     export LSB_NCPU="1"
     export LSB_MEM="8GB"
     export LSB_TIME_H="24"
