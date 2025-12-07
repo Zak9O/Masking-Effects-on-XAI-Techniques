@@ -16,3 +16,4 @@ data/*/lime
 debug
 hpc/anonymization
 hpc/explanation
+hpc/tmp
