@@ -17,7 +17,7 @@ def generate_qcut_hierarchy(
 
     for i in range(0, levels - 1):
         if search_for_n:
-            bins = _search_for_bins(unique, levels - i)
+            bins = _search_for_bins(values, levels - i)
         else:
             bins = pd.qcut(values, levels - i)
         current_level_hierarchy = []
