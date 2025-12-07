@@ -33,13 +33,7 @@ def _create_classifier(
     classifier_type: str,
 ) -> MLPClassifier | RidgeClassifier | RandomForestClassifier:
     if classifier_type == "MLP":
-        return MLPClassifier(
-            solver="sgd",
-            alpha=1e-5,
-            hidden_layer_sizes=(10),
-            random_state=1,
-            max_iter=2000,
-        )
+        return MLPClassifier(max_iter=2000)
     elif classifier_type == "forest":
         return RandomForestClassifier()
     elif classifier_type == "linear":
