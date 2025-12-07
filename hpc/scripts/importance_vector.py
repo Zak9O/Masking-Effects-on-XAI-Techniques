@@ -17,7 +17,7 @@ from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import RidgeClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
@@ -31,13 +31,13 @@ def standardize_sensitive_attr(y_train, y_test):
 
 def _create_classifier(
     classifier_type: str,
-) -> MLPClassifier | RidgeClassifier | RandomForestClassifier:
+) -> MLPClassifier | KNeighborsClassifier | RandomForestClassifier:
     if classifier_type == "MLP":
         return MLPClassifier(max_iter=2000)
     elif classifier_type == "forest":
         return RandomForestClassifier()
-    elif classifier_type == "linear":
-        return RidgeClassifier()
+    elif classifier_type == "knn":
+        return KNeighborsClassifier()
     else:
         raise ValueError(f"{classifier_type} is not a valid model")
 
@@ -161,17 +161,11 @@ def shap_importance(
     logging.info("Training Model.")
 
     _ = clf.fit(np.array(X_train), y_train)
-    score = clf.score(np.array(X_train), y_train)
+    score = clf.score(np.array(X_test), y_test)
     logging.info(f"Model training finished. Score: {score}")
 
-    if dataset.classifier_type == "classifier":
-
-        def f(x):  # pyright: ignore[reportRedeclaration]
-            return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue]
-    else:
-
-        def f(x):
-            return clf.predict(x)
+    def f(x):  # pyright: ignore[reportRedeclaration]
+        return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue]
 
     med = X_train.median().values.reshape((1, X_train.shape[1]))
     explainer = shap.KernelExplainer(f, med)
@@ -247,24 +241,15 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
     score = clf.score(X_test_enc, y_test)
     logging.info(f"Model training finished. Score: {score}")
 
-    if dataset.classifier_type == "classifier":
-
-        def f(x):  # pyright: ignore[reportRedeclaration]
-            x = pd.DataFrame(x, columns=X_train.columns.tolist())
-            for feature, encoder in encoders.items():
-                x = one_hot_encoding(x, feature, encoder)
-            for feature in numeric_features:
-                if feature not in skip_columns:
-                    continue
-                x[feature] = numeric_encoders[feature].transform(x[[feature]])
-            return clf.predict_proba(x).astype(float)  # pyright: ignore[reportAttributeAccessIssue]
-    else:
-
-        def f(x):
-            x = pd.DataFrame(x, columns=X_train.columns.tolist())
-            for feature, encoder in encoders.items():
-                x = one_hot_encoding(x, feature, encoder)
-            return clf.predict(x).astype(float)
+    def f(x):  # pyright: ignore[reportRedeclaration]
+        x = pd.DataFrame(x, columns=X_train.columns.tolist())
+        for feature, encoder in encoders.items():
+            x = one_hot_encoding(x, feature, encoder)
+        for feature in numeric_features:
+            if feature not in skip_columns:
+                continue
+            x[feature] = numeric_encoders[feature].transform(x[[feature]])
+        return clf.predict_proba(x).astype(float)  # pyright: ignore[reportAttributeAccessIssue]
 
     cat_features = list(X_train.columns)
     for numeric_feat in numeric_features:
