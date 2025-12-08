@@ -222,6 +222,114 @@ class PlotCreator:
         plt.tight_layout()
         plt.show()
 
+    def plot_line(
+        self, classifier: str, dataset: str, method: str, only: list[str] | None = None
+    ) -> None:
+        # Create a single figure with 2x2 subplots
+        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(20, 15))
+        axes = axes.flatten()  # Flatten the 2x2 array for easy iteration
+        explanationss = self.models[classifier].datasets[dataset].explanations[method]
+
+        fig.suptitle(
+            f"Feature Rank Comparison for {f'{classifier}-{dataset}'} using {method}",
+            fontsize=16,
+        )
+
+        for i, (_, model) in enumerate(PlotCreator.ANONYMIZATION_MODELS):
+            if only is not None and model not in only:
+                continue
+            ax = axes[i]  # Get the current subplot axis
+            explanations = explanationss["clean"] + explanationss[model]
+
+            model_names = [e.name for e in explanations]
+            y_locs = range(len(model_names))
+
+            all_items = set(item for e in explanations for item in e.get_ranking())
+            # Use a deterministic ordering for colors/legend and exactly 20 colors
+            all_items_list = sorted(all_items)
+            cmap = plt.get_cmap("tab20")  # tab20 provides 20 distinct colors
+
+            for idx, item in enumerate(all_items_list):
+                ranks = []
+                y_vals = []
+                for j, e in enumerate(explanations):
+                    ranking = e.get_ranking()
+                    if item in ranking:
+                        ranks.append(ranking.index(item) + 1)
+                        y_vals.append(j)
+                    else:
+                        ranks.append(None)
+                        y_vals.append(j)
+                color = cmap(idx % 20)
+                ax.plot(
+                    ranks, y_locs, marker="o", linestyle="-", label=item, color=color
+                )
+
+            ax.legend(
+                bbox_to_anchor=(1.05, 1),
+                loc="upper left",
+                borderaxespad=0.0,
+                fontsize="small",
+            )
+
+            ax.set_yticks(y_locs)
+            ax.set_yticklabels(model_names)
+            ax.invert_yaxis()
+
+            # Calculate the maximum rank for the current subplot
+            max_rank_for_subplot = 0
+            for e in explanations:
+                max_rank_for_subplot = max(max_rank_for_subplot, len(e.get_ranking()))
+
+            ax.set_xlim(0, max_rank_for_subplot + 1)
+            ax.set_xticks(range(1, max_rank_for_subplot + 1))
+            ax.set_xlabel("Rank")
+
+            ax.grid(axis="x", linestyle="--", alpha=0.5)
+            for s in ["top", "right", "left"]:
+                ax.spines[s].set_visible(False)
+
+            ax2 = ax.twinx()
+            accuracies = [e.accuracy for e in explanations]
+            generalization_levels = [
+                round(100 * e.transform_n / e.transform_n_max) for e in explanations
+            ]
+            ax2.set_yticks(y_locs)
+            # Generate new yticklabels with both accuracy and generalization level
+            formatted_labels = []
+            for j in range(len(accuracies)):
+                label = f"{accuracies[j]:.2f} ({generalization_levels[j]}%)"
+                formatted_labels.append(label)
+            ax2.set_yticklabels(formatted_labels)
+
+            ax2.set_ylabel("Model Accuracy (Generalization Level)")
+            ax2.invert_yaxis()
+            ax2.set_ylim(ax.get_ylim())
+
+            ax.set_title(f"Model: {model}")
+
+        # Create a single legend for the entire figure
+        handles, labels = [], []
+        for ax in axes:
+            for handle, label in zip(*ax.get_legend_handles_labels()):
+                if label not in labels:
+                    handles.append(handle)
+                    labels.append(label)
+            ax.get_legend().remove()  # Remove individual subplot legends
+        fig.legend(
+            handles,
+            labels,
+            loc="upper right",
+            bbox_to_anchor=(1.0, 0.95),
+            title="Features",
+            fontsize="small",
+        )
+
+        fig.tight_layout(
+            rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
+        )  # Adjust rect to make space for the global legend
+        plt.show()
+
 
 pl = PlotCreator(
     [
@@ -231,12 +339,10 @@ pl = PlotCreator(
     ["usa_house", "cervic_cancer", "adult"],
     "./data/",
 )
-pl.plot_heatmap(
-    classifiers=["forest"],
-    explanation_methods=["shap"],
-    datasets=["adult"],
-    methods=[
-        "t_closeness",
-        "l_diversity",
-    ],
+pl.plot_line(
+    classifier="forest",
+    method="shap",
+    dataset="adult",
 )
+# Example usage of plot_line:
+# pl.plot_line(classifier="forest", method="shap", dataset="adult")
