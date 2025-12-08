@@ -395,7 +395,8 @@ class PlotCreator:
                     existing = data[method].get(anon_model_name, [])
                     if existing:
                         data[method][anon_model_name] = [
-                            (e + r) / 2 for e, r in zip(existing, ran)
+                            (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
+                            for e, r in zip(existing, ran)
                         ]
                     else:
                         data[method][anon_model_name] = ran
@@ -406,6 +407,7 @@ class PlotCreator:
                 1 for s, la in zip(data["shap"][method], data["lime"][method]) if la > s
             )
             above[method] /= len(data["lime"][method])
+        avg_above = sum(above.values()) / len(above)
 
         # Plotting
         plt.figure(figsize=(10, 6))
@@ -454,9 +456,9 @@ class PlotCreator:
                 label=f"{anon} ({above.get(anon, 0) * 100:.1f}%)",
             )
             for anon, col in colors.items()
+            if anon in above
         ]
 
-        avg_above = sum(above.values()) / len(above)
         linestyle_handles = [
             Line2D(
                 [0],
@@ -466,7 +468,7 @@ class PlotCreator:
                 linestyle=ls,
                 label=f"{method} ({avg_above * 100:.1f}%)"
                 if method == "lime"
-                else f"{method} ({(1 - avg_above) * 100:.1f}%)",
+                else f"{method}",
             )
             for method, ls in list(linestyles.items())[::-1]
         ]
@@ -479,7 +481,7 @@ class PlotCreator:
         ax.add_artist(anon_legend)
         ax.legend(
             handles=linestyle_handles,
-            title="Method (# LIME > SHAP %)",
+            title="Method",
             loc="upper right",
         )
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -668,7 +670,7 @@ class PlotCreator:
 #     "./data/",
 # )
 # pl.plot_consistency(
-#     "usa_house"
+#     "adult"
 # )
 # pl = PlotCreator(
 #     ["forest", "MLP", "knn"],
