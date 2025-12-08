@@ -31,7 +31,7 @@ function sub {
 
     export METHOD="$i"
     export DATA_PATH="$1"
-    export DATA_OUT_PATH="out/$CLASSIFIER_TYPE/$METHOD/$1"
+    export DATA_OUT_PATH="out/$CLASSIFIER_TYPE/$METHOD/${1#data/}"
     envsubst < "./LSF_submit.sh" >> $JOB_SUB
 
     bsub < $JOB_SUB
