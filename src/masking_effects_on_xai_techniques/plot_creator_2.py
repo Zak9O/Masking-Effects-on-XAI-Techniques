@@ -1,5 +1,4 @@
 import numpy as np
-from copy import copy
 from scipy import stats
 import os
 import matplotlib.pyplot as plt
@@ -9,7 +8,11 @@ from typing import Optional
 
 class Explanation:
     def __init__(self, path: str) -> None:
-        array = np.load(path)
+        try:
+            array = np.load(path)
+        except FileNotFoundError:
+            print(f"File not found: {path}!")
+            return
         self.name = os.path.basename(path).split(".csv", 1)[0]
         self.accuracy = float(array[0][1])
         self.transform_n = int(float(array[1][1]))
@@ -22,6 +25,12 @@ class Explanation:
 
     def get_ranking(self) -> list[str]:
         return self._ranking
+
+    def compute_kendal_tau(self, ref_ranking: list[str]):
+        ref_ranking_enc = [i for i, _ in enumerate(ref_ranking)]
+        encoder = {feat: idx for idx, feat in enumerate(self.get_ranking())}
+        ranking_enc = [encoder.get(feat, len(encoder)) for feat in ref_ranking]
+        return stats.kendalltau(ref_ranking_enc, ranking_enc, alternative="greater")
 
 
 class Dataset:
@@ -73,33 +82,10 @@ class Dataset:
                 if anon_model_name == "clean":
                     continue
 
-                kendal_taus[method][anon_model_name] = self._compute_kendal_tau(
-                    clean_ranking, explanations
-                )
+                kendal_taus[method][anon_model_name] = [
+                    e.compute_kendal_tau(clean_ranking) for e in explanations
+                ]
         return kendal_taus
-
-    def _compute_kendal_tau(
-        self, model_ranking: list[str], rankings: list[Explanation]
-    ) -> list[object]:
-        kendaltau = []
-        for e in rankings:
-            if len(e.get_ranking()) == 1:
-                continue
-            m_rnk, rnk = self._make_compatible(e.get_ranking(), model_ranking)
-            kendaltau.append(stats.kendalltau(m_rnk, rnk, alternative="greater"))
-        return kendaltau
-
-    def _add_missing_categories(self, ref: list[str], rnk: list[str]) -> list[str]:
-        out = copy(rnk)
-        for feat in ref:
-            if feat not in rnk:
-                out.append(feat)
-        return out
-
-    def _make_compatible(
-        self, ref: list[str], rnk: list[str]
-    ) -> tuple[list[str], list[str]]:
-        return (ref, rnk[: len(ref)])
 
 
 class Model:
@@ -330,8 +316,82 @@ class PlotCreator:
         )  # Adjust rect to make space for the global legend
         plt.show()
 
-    def plot_line_2(
-        self, classifier1: str, classifier2: str, dataset: str, method: str
+    def plot_stability(
+        self, classifiers: list[str], dataset: list[str], methods: list[str]
+    ) -> None:
+        data = {"shap": [], "lime": []}
+        for classifier in classifiers:
+            for dataset_name in dataset:
+                for method in data.keys():
+                    explanations = (
+                        self.models[classifier]
+                        .datasets[dataset_name]
+                        .explanations[method]
+                    )
+                    for anon_model_name, expl_list in explanations.items():
+                        if anon_model_name == "clean" or anon_model_name not in methods:
+                            continue
+
+                        ran = [
+                            e.compute_kendal_tau(
+                                explanations["clean"][0].get_ranking()
+                            ).correlation
+                            for e in expl_list
+                        ]
+                        # ran = []
+                        # if anon_model_name == "clean":
+                        #     continue
+                        # tmp = explanations['clean'] + expl_list
+                        # for e1,e2 in zip(tmp[:-1],tmp[1:]):
+                        #     kt = e2.compute_kendal_tau(e1.get_ranking())
+                        #     ran.append(kt.pvalue)
+                        data[method].append(ran)
+
+        # Find the maximum length of any list in the data
+        max_len = 0
+        for method_lists in data.values():
+            for lst in method_lists:
+                max_len = max(max_len, len(lst))
+
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # Define colors for each method
+        colors = {"shap": "blue", "lime": "orange"}
+
+        # Plot each line
+        for method, method_lists in data.items():
+            color = colors[method]
+            for lst in method_lists:
+                x_vals = range(1, len(lst) + 1)
+                ax.plot(x_vals, lst, color=color, marker="o", linestyle="-", alpha=0.6)
+
+        # Create custom legend
+        from matplotlib.lines import Line2D
+
+        legend_elements = [
+            Line2D([0], [0], color=colors["shap"], lw=2, label="SHAP"),
+            Line2D([0], [0], color=colors["lime"], lw=2, label="LIME"),
+        ]
+        ax.legend(handles=legend_elements)
+
+        # Set axis labels and title
+        ax.set_xlabel("Anonymization Level")
+        ax.set_ylabel("Kendall Tau Correlation")
+        ax.set_title("Stability Analysis: Kendall Tau Correlations")
+        ax.set_xticks(range(1, max_len + 1))
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_line_compare(
+        self,
+        classifier1: str,
+        classifier2: str,
+        dataset: str,
+        method: str,
+        model_type: str,
     ) -> None:
         # Create two plots side by side using plot_line for two different classifiers
         # classifier1: first classifier type
@@ -388,7 +448,8 @@ class PlotCreator:
             for anon_model_name, expl_list in explanations.items():
                 if anon_model_name == "clean":
                     continue
-                anon_models_list.append((anon_model_name, expl_list))
+                if anon_model_name == model_type:
+                    anon_models_list.append((anon_model_name, expl_list))
 
             # Only use first anonymization method for this simplified version
             if anon_models_list:
@@ -496,15 +557,17 @@ class PlotCreator:
         plt.show()
 
 
-pl = PlotCreator(
-    [
-        "forest",
-        "MLP",
-    ],
-    ["usa_house", "cervic_cancer", "adult"],
-    "./data/",
-)
+# pl = PlotCreator(
+#     [
+#         "MLP",
+#         "forest"
+#     ],
+#     ["adult", "usa_house", "cervic_cancer"],
+#     "./data/",
+# )
+# pl.plot_stability(classifiers=["MLP", "forest"], dataset=["adult", "usa_house", "cervic_cancer"])
+# pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
 # Example usage of plot_line_2:
-pl.plot_line_2(classifier1="forest", classifier2="MLP", dataset="adult", method="shap")
+# pl.plot_line_compare(classifier1="forest", classifier2="MLP", dataset="adult", method="shap")
 # Example usage of plot_line:
 # pl.plot_line(classifier="forest", method="shap", dataset="adult")
