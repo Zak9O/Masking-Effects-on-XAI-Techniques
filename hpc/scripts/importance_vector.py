@@ -167,8 +167,8 @@ def shap_importance(
     def f(x):  # pyright: ignore[reportRedeclaration]
         return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue]
 
-    med = X_train.median().values.reshape((1, X_train.shape[1]))
-    explainer = shap.KernelExplainer(f, med)
+    background_data = shap.utils.sample(X_train, 100)
+    explainer = shap.KernelExplainer(f, background_data)
 
     logging.info("Calculating SHAP values.")
     shap_values = explainer(X_test)
