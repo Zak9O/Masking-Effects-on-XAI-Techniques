@@ -368,96 +368,118 @@ class PlotCreator:
         )  # Adjust rect to make space for the global legend
         plt.show()
 
-    def plot_stability(
-        self, classifiers: list[str], dataset: list[str], methods: list[str]
-    ) -> None:
+    def plot_consistency(self, dataset: str, methods: list[str] | None = None) -> None:
         data = {"shap": {}, "lime": {}}
-        for classifier in classifiers:
-            for dataset_name in dataset:
-                for method in data.keys():
-                    explanations = (
-                        self.models[classifier]
-                        .datasets[dataset_name]
-                        .explanations[method]
-                    )
-                    for anon_model_name, expl_list in explanations.items():
-                        if anon_model_name == "clean" or anon_model_name not in methods:
-                            continue
+        for classifier in ["MLP", "forest", "knn"]:
+            for method in data.keys():
+                explanations = (
+                    self.models[classifier].datasets[dataset].explanations[method]
+                )
+                for anon_model_name, expl_list in explanations.items():
+                    if anon_model_name == "clean" or (
+                        methods and anon_model_name not in methods
+                    ):
+                        continue
 
-                        ran = [
-                            e.compute_kendal_tau(
-                                explanations["clean"][0].get_ranking()
-                            ).pvalue
-                            for e in expl_list
+                    ran = [
+                        e.compute_kendal_tau(
+                            explanations["clean"][0].get_ranking()
+                        ).pvalue
+                        for e in expl_list
+                    ]
+                    # tmp = explanations['clean'] + expl_list
+                    # for e1, e2 in zip(tmp[:-1], tmp[1:]):
+                    #     kt = e2.compute_kendal_tau(e1.get_ranking())
+                    #     ran.append(kt.pvalue)
+
+                    existing = data[method].get(anon_model_name, [])
+                    if existing:
+                        data[method][anon_model_name] = [
+                            (e + r) / 2 for e, r in zip(existing, ran)
                         ]
-                        # tmp = explanations['clean'] + expl_list
-                        # for e1, e2 in zip(tmp[:-1], tmp[1:]):
-                        #     kt = e2.compute_kendal_tau(e1.get_ranking())
-                        #     ran.append(kt.pvalue)
+                    else:
+                        data[method][anon_model_name] = ran
 
-                        existing = data[method].get(anon_model_name, [])
-                        if existing:
-                            data[method][anon_model_name] = [
-                                (e + r) / 2 for e, r in zip(existing, ran)
-                            ]
-                        else:
-                            data[method][anon_model_name] = ran
+        above = {}
+        for method in data["lime"].keys():
+            above[method] = sum(
+                1 for s, la in zip(data["shap"][method], data["lime"][method]) if la > s
+            )
+            above[method] /= len(data["lime"][method])
 
         # Plotting
         plt.figure(figsize=(10, 6))
-        colors = {"lime": "tab:green", "shap": "tab:blue"}
-        markers = {
-            "t_closeness": "o",
-            "k_anonymity": "x",
-            "alpha_k_anonymity": "^",
-            "l_diversity": "s",
+        colors = {
+            "t_closeness": "tab:orange",
+            "k_anonymity": "tab:purple",
+            "alpha_k_anonymity": "tab:red",
+            "l_diversity": "tab:brown",
+        }
+        linestyles = {
+            "shap": "-",
+            "lime": "--",
+        }
+        x_offsets = {
+            "shap": -0.05,
+            "lime": 0.05,
         }
         max_len = 0
         for method, method_data in data.items():
             for anon_model_name, values in method_data.items():
-                x_vals = list(range(1, len(values) + 1))  # 1-based index for x-axis
+                x_vals = np.arange(1, len(values) + 1, dtype=float)
+                x_vals += x_offsets.get(method, 0.0)
                 max_len = max(max_len, len(x_vals))
                 plt.plot(
                     x_vals,
                     values,
-                    label=f"{method} - {anon_model_name}",
-                    color=colors.get(method, None),
-                    marker=markers.get(anon_model_name, "o"),
+                    color=colors.get(anon_model_name, None),
+                    linestyle=linestyles.get(method, "-"),
+                    linewidth=2.0,
+                    alpha=0.85,
                 )
 
-        plt.xlabel("Index")
+        plt.xlabel("Anonymization Level")
         plt.xticks(range(1, max_len + 1))
-        plt.ylabel("Kendall Tau Correlation")
-        plt.title("Stability of Explanation Methods")
+        plt.ylabel("Kendall Tau p-value")
+        plt.title(f"{dataset} Kendall Tau p-value Comparison: LIME vs SHAP")
 
-        # Legends: colors for methods, markers for anonymization models
+        # Legends: colors for anonymization models, linestyles for methods
         ax = plt.gca()
         color_handles = [
-            Line2D([0], [0], color=col, lw=2, label=method)
-            for method, col in colors.items()
+            Line2D(
+                [0],
+                [0],
+                color=col,
+                lw=2,
+                label=f"{anon} ({above.get(anon, 0) * 100:.1f}%)",
+            )
+            for anon, col in colors.items()
         ]
-        marker_handles = [
+
+        avg_above = sum(above.values()) / len(above)
+        linestyle_handles = [
             Line2D(
                 [0],
                 [0],
                 color="black",
-                marker=mark,
-                linestyle="None",
-                markersize=8,
-                label=anon,
+                lw=2,
+                linestyle=ls,
+                label=f"{method} ({avg_above * 100:.1f}%)"
+                if method == "lime"
+                else f"{method} ({(1 - avg_above) * 100:.1f}%)",
             )
-            for anon, mark in markers.items()
+            for method, ls in list(linestyles.items())[::-1]
         ]
 
-        method_legend = ax.legend(
+        anon_legend = ax.legend(
             handles=color_handles,
-            title="Method (color)",
+            title="Anonymization (# LIME > SHAP %)",
             loc="upper left",
         )
-        ax.add_artist(method_legend)
+        ax.add_artist(anon_legend)
         ax.legend(
-            handles=marker_handles,
-            title="Anonymization (marker)",
+            handles=linestyle_handles,
+            title="Method (# LIME > SHAP %)",
             loc="upper right",
         )
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -639,23 +661,27 @@ class PlotCreator:
 # pl = PlotCreator(
 #     [
 #         "MLP",
-#         "forest"
+#         "forest",
+#         "knn"
 #     ],
 #     ["adult", "usa_house", "cervic_cancer"],
 #     "./data/",
 # )
-pl = PlotCreator(
-    ["forest", "MLP", "knn"],
-    ["usa_house", "usa_house_old", "cervic_cancer", "adult"],
-    # ["adult"],
-    "./data/",
-)
+# pl.plot_consistency(
+#     "usa_house"
+# )
+# pl = PlotCreator(
+#     ["forest", "MLP", "knn"],
+#     ["usa_house", "usa_house_old", "cervic_cancer", "adult"],
+#     # ["adult"],
+#     "./data/",
+# )
 # pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
-pl.plot_stability(
-    ["MLP"],
-    ["usa_house"],
-    ["k_anonymity", "t_closeness", "l_diversity", "alpha_k_anonymity"],
-)
+# pl.plot_stability(
+#     ["MLP", "forest", "knn"],
+#     ["usa_house_old"],
+#     ["k_anonymity", "t_closeness", "l_diversity", "alpha_k_anonymity"],
+# )
 # pl.plot_heatmap()
 # pl.plot_heatmap(datasets=["usa_house"], methods=['l_diversity'])
 # pl.plot_stability(classifiers=["MLP", "forest"], dataset=["adult", "usa_house", "cervic_cancer"])
