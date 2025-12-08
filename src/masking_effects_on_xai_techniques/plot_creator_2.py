@@ -54,6 +54,8 @@ class Dataset:
             files_sorted = self._sort_files(anon_model_dir_name, anon_model_dir)
             for file_name in files_sorted:
                 file_path = os.path.join(anon_model_dir, file_name)
+                if "alpha" in anon_model_dir_name and "1" in file_name:
+                    continue
                 explanations.append(Explanation(file_path))
             method_dict[anon_model_dir_name] = explanations
 
@@ -137,6 +139,8 @@ class PlotCreator:
         rows = []
         labels = []
         max_len = 0
+        generalization_levels = []  # Track generalization levels for annotations
+        accuracies = []  # Track accuracies for annotations
 
         for model_name, model in self.models.items():
             # apply classifier filter if provided (non-empty)
@@ -147,6 +151,9 @@ class PlotCreator:
                 # apply dataset filter if provided (non-empty)
                 if datasets and dataset_name not in datasets:
                     continue
+
+                # Access the actual explanations to get generalization levels and accuracy
+                explanations_dict = dataset.explanations
 
                 kendal_taus = dataset.get_kendal_taus()
                 for method, anon_model_map in kendal_taus.items():
@@ -159,9 +166,16 @@ class PlotCreator:
                         if methods and anon_model_name not in methods:
                             continue
 
+                        # Get the actual explanation list to extract generalization levels and accuracy
+                        expl_list = explanations_dict.get(method, {}).get(
+                            anon_model_name, []
+                        )
+
                         # extract p-values from Kendalltau results (0..1)
                         vals = []
-                        for kt in kt_list:
+                        gen_levels = []
+                        acc_values = []
+                        for idx, kt in enumerate(kt_list):
                             pval = getattr(kt, "pvalue", None)
                             if pval is not None:
                                 try:
@@ -169,10 +183,24 @@ class PlotCreator:
                                 except Exception:
                                     vals.append(np.nan)
 
+                            # Get generalization level and accuracy for this explanation
+                            if idx < len(expl_list):
+                                e = expl_list[idx]
+                                gen_level = round(
+                                    100 * e.transform_n / e.transform_n_max
+                                )
+                                gen_levels.append(gen_level)
+                                acc_values.append(e.accuracy)
+                            else:
+                                gen_levels.append(None)
+                                acc_values.append(None)
+
                         labels.append(
                             f"{model_name}-{dataset_name}-{method}-{anon_model_name}"
                         )
                         rows.append(vals)
+                        generalization_levels.append(gen_levels)
+                        accuracies.append(acc_values)
                         if len(vals) > max_len:
                             max_len = len(vals)
 
@@ -198,7 +226,30 @@ class PlotCreator:
             cbar_kws={"label": "p-value"},
             linewidths=0.5,
             linecolor="lightgrey",
+            annot=False,
         )
+
+        # Add accuracy and generalization level annotations in black small text
+        for row_idx, (acc_list, gen_levels) in enumerate(
+            zip(accuracies, generalization_levels)
+        ):
+            for col_idx, (acc, gen_level) in enumerate(zip(acc_list, gen_levels)):
+                if (
+                    gen_level is not None
+                    and acc is not None
+                    and not np.isnan(data[row_idx, col_idx])
+                ):
+                    ax.text(
+                        col_idx + 0.15,
+                        row_idx + 0.15,
+                        f"{round(acc * 100, 1)}%\n({gen_level}%)",
+                        ha="left",
+                        va="top",
+                        color="red",
+                        fontsize=6,
+                        weight="bold",
+                    )
+
         ax.set_xlabel("Anonymization Level")
         ax.set_ylabel("Model-Dataset-Method-AnonModel")
         if explanation_methods and len(explanation_methods) == 1:
@@ -565,6 +616,17 @@ class PlotCreator:
 #     ["adult", "usa_house", "cervic_cancer"],
 #     "./data/",
 # )
+# pl = PlotCreator(
+#     [
+#         "forest",
+#         "MLP",
+#         "knn"
+#     ],
+#     ["usa_house","usa_house_old", "cervic_cancer", "adult"],
+#     "./data/",
+# )
+# pl.plot_heatmap()
+# pl.plot_heatmap(datasets=["usa_house"], methods=['l_diversity'])
 # pl.plot_stability(classifiers=["MLP", "forest"], dataset=["adult", "usa_house", "cervic_cancer"])
 # pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
 # Example usage of plot_line_2:

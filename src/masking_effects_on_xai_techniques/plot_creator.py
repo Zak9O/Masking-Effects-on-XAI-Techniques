@@ -39,10 +39,13 @@ class Comparer:
 
     EXPLANATION_METHODS = ["shap", "lime"]
 
-    def __init__(self, dataset: str, root: str, skip: list[str] | None = None) -> None:
+    def __init__(
+        self, dataset: str, root: str, classifier: str, skip: list[str] | None = None
+    ) -> None:
         self.dataset = dataset
         self.explanations: dict[str, dict[str, list[Explanation]]] = {}
         self.kendaltau: dict[str, dict[str, list[object]]] = {}
+        self.classifier = classifier
         for method in self.EXPLANATION_METHODS:
             self.explanations[method] = {}
             self.kendaltau[method] = {}
@@ -56,7 +59,8 @@ class Comparer:
         for method in self.EXPLANATION_METHODS:
             for id, model in self.models:
                 paths = self.get_abs_paths(
-                    f"{root}/data/{self.dataset}/{method}/{model}", id in ["l", "k"]
+                    f"{root}/data/{self.classifier}/{method}/{self.dataset}/{model}",
+                    id in ["l", "k"],
                 )
                 rankings = self.load_explanations(paths)
                 self.explanations[method][id] = rankings
@@ -65,7 +69,11 @@ class Comparer:
     def load_explanations(self, paths: list[str]) -> list[Explanation]:
         explanations = []
         for path in paths:
-            array = np.load(path)
+            try:
+                array = np.load(path)
+            except FileNotFoundError:
+                print(f"File not found: {path}")
+                continue
             if array[1][0] != "transform_n":
                 # delete the path
                 print(f"Deleting old file at {path}")
@@ -228,7 +236,7 @@ class Comparer:
             plt.tight_layout()
             plt.show()
 
-    def plot_line(self, method: str) -> None:
+    def plot_line(self, method: str, only: list[str] | None = None) -> None:
         # Create a single figure with 2x2 subplots
         fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(20, 15))
         axes = axes.flatten()  # Flatten the 2x2 array for easy iteration
@@ -238,6 +246,8 @@ class Comparer:
         )
 
         for i, (id, model) in enumerate(self.models):
+            if only is not None and model not in only:
+                continue
             ax = axes[i]  # Get the current subplot axis
             explanations = self.explanations[method][id]
 
@@ -481,3 +491,7 @@ class Comparer:
 
         plt.tight_layout()
         plt.show()
+
+
+# adult_knn = Comparer("adult", ".", "knn")
+# adult_knn.plot_accuracy("lime", baseline=0.76)
