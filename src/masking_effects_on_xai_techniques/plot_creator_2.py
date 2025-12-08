@@ -2,6 +2,7 @@ import numpy as np
 from scipy import stats
 import os
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import seaborn as sns
 from typing import Optional
 
@@ -370,7 +371,7 @@ class PlotCreator:
     def plot_stability(
         self, classifiers: list[str], dataset: list[str], methods: list[str]
     ) -> None:
-        data = {"shap": [], "lime": []}
+        data = {"shap": {}, "lime": {}}
         for classifier in classifiers:
             for dataset_name in dataset:
                 for method in data.keys():
@@ -386,53 +387,80 @@ class PlotCreator:
                         ran = [
                             e.compute_kendal_tau(
                                 explanations["clean"][0].get_ranking()
-                            ).correlation
+                            ).pvalue
                             for e in expl_list
                         ]
-                        # ran = []
-                        # if anon_model_name == "clean":
-                        #     continue
                         # tmp = explanations['clean'] + expl_list
-                        # for e1,e2 in zip(tmp[:-1],tmp[1:]):
+                        # for e1, e2 in zip(tmp[:-1], tmp[1:]):
                         #     kt = e2.compute_kendal_tau(e1.get_ranking())
                         #     ran.append(kt.pvalue)
-                        data[method].append(ran)
 
-        # Find the maximum length of any list in the data
+                        existing = data[method].get(anon_model_name, [])
+                        if existing:
+                            data[method][anon_model_name] = [
+                                (e + r) / 2 for e, r in zip(existing, ran)
+                            ]
+                        else:
+                            data[method][anon_model_name] = ran
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        colors = {"lime": "tab:green", "shap": "tab:blue"}
+        markers = {
+            "t_closeness": "o",
+            "k_anonymity": "x",
+            "alpha_k_anonymity": "^",
+            "l_diversity": "s",
+        }
         max_len = 0
-        for method_lists in data.values():
-            for lst in method_lists:
-                max_len = max(max_len, len(lst))
+        for method, method_data in data.items():
+            for anon_model_name, values in method_data.items():
+                x_vals = list(range(1, len(values) + 1))  # 1-based index for x-axis
+                max_len = max(max_len, len(x_vals))
+                plt.plot(
+                    x_vals,
+                    values,
+                    label=f"{method} - {anon_model_name}",
+                    color=colors.get(method, None),
+                    marker=markers.get(anon_model_name, "o"),
+                )
 
-        # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 8))
+        plt.xlabel("Index")
+        plt.xticks(range(1, max_len + 1))
+        plt.ylabel("Kendall Tau Correlation")
+        plt.title("Stability of Explanation Methods")
 
-        # Define colors for each method
-        colors = {"shap": "blue", "lime": "orange"}
-
-        # Plot each line
-        for method, method_lists in data.items():
-            color = colors[method]
-            for lst in method_lists:
-                x_vals = range(1, len(lst) + 1)
-                ax.plot(x_vals, lst, color=color, marker="o", linestyle="-", alpha=0.6)
-
-        # Create custom legend
-        from matplotlib.lines import Line2D
-
-        legend_elements = [
-            Line2D([0], [0], color=colors["shap"], lw=2, label="SHAP"),
-            Line2D([0], [0], color=colors["lime"], lw=2, label="LIME"),
+        # Legends: colors for methods, markers for anonymization models
+        ax = plt.gca()
+        color_handles = [
+            Line2D([0], [0], color=col, lw=2, label=method)
+            for method, col in colors.items()
         ]
-        ax.legend(handles=legend_elements)
+        marker_handles = [
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                marker=mark,
+                linestyle="None",
+                markersize=8,
+                label=anon,
+            )
+            for anon, mark in markers.items()
+        ]
 
-        # Set axis labels and title
-        ax.set_xlabel("Anonymization Level")
-        ax.set_ylabel("Kendall Tau Correlation")
-        ax.set_title("Stability Analysis: Kendall Tau Correlations")
-        ax.set_xticks(range(1, max_len + 1))
-        ax.grid(True, alpha=0.3)
-
+        method_legend = ax.legend(
+            handles=color_handles,
+            title="Method (color)",
+            loc="upper left",
+        )
+        ax.add_artist(method_legend)
+        ax.legend(
+            handles=marker_handles,
+            title="Anonymization (marker)",
+            loc="upper right",
+        )
+        plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
         plt.show()
 
@@ -616,19 +644,21 @@ class PlotCreator:
 #     ["adult", "usa_house", "cervic_cancer"],
 #     "./data/",
 # )
-# pl = PlotCreator(
-#     [
-#         "forest",
-#         "MLP",
-#         "knn"
-#     ],
-#     ["usa_house","usa_house_old", "cervic_cancer", "adult"],
-#     "./data/",
-# )
+pl = PlotCreator(
+    ["forest", "MLP", "knn"],
+    ["usa_house", "usa_house_old", "cervic_cancer", "adult"],
+    # ["adult"],
+    "./data/",
+)
+# pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
+pl.plot_stability(
+    ["MLP"],
+    ["usa_house"],
+    ["k_anonymity", "t_closeness", "l_diversity", "alpha_k_anonymity"],
+)
 # pl.plot_heatmap()
 # pl.plot_heatmap(datasets=["usa_house"], methods=['l_diversity'])
 # pl.plot_stability(classifiers=["MLP", "forest"], dataset=["adult", "usa_house", "cervic_cancer"])
-# pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
 # Example usage of plot_line_2:
 # pl.plot_line_compare(classifier1="forest", classifier2="MLP", dataset="adult", method="shap")
 # Example usage of plot_line:
