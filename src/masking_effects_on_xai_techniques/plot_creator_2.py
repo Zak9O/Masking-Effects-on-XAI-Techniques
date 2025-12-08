@@ -330,6 +330,171 @@ class PlotCreator:
         )  # Adjust rect to make space for the global legend
         plt.show()
 
+    def plot_line_2(
+        self, classifier1: str, classifier2: str, dataset: str, method: str
+    ) -> None:
+        # Create two plots side by side using plot_line for two different classifiers
+        # classifier1: first classifier type
+        # classifier2: second classifier type
+        # dataset: dataset name
+        # method: explanation method
+
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
+        fig.suptitle(
+            f"Feature Rank Comparison: {classifier1} vs {classifier2} on {dataset} using {method}",
+            fontsize=16,
+        )
+
+        classifiers_to_plot = [classifier1, classifier2]
+
+        for ax_idx, classifier in enumerate(classifiers_to_plot):
+            ax = axes[ax_idx]
+            plt.sca(ax)
+
+            # Get the explanations for this classifier
+            if classifier not in self.models:
+                ax.text(
+                    0.5,
+                    0.5,
+                    f"Classifier '{classifier}' not found",
+                    ha="center",
+                    va="center",
+                )
+                ax.set_title(f"{classifier}")
+                continue
+
+            model = self.models[classifier]
+
+            if dataset not in model.datasets:
+                ax.text(
+                    0.5, 0.5, f"Dataset '{dataset}' not found", ha="center", va="center"
+                )
+                ax.set_title(f"{classifier}")
+                continue
+
+            dataset_obj = model.datasets[dataset]
+
+            if method not in dataset_obj.explanations:
+                ax.text(
+                    0.5, 0.5, f"Method '{method}' not found", ha="center", va="center"
+                )
+                ax.set_title(f"{classifier}")
+                continue
+
+            explanations = dataset_obj.explanations[method]
+
+            # Collect anonymization models
+            anon_models_list = []
+            for anon_model_name, expl_list in explanations.items():
+                if anon_model_name == "clean":
+                    continue
+                anon_models_list.append((anon_model_name, expl_list))
+
+            # Only use first anonymization method for this simplified version
+            if anon_models_list:
+                anon_model_name, expl_list = anon_models_list[0]
+
+                # Get clean explanation
+                clean_expl = explanations.get("clean", [None])[0]
+                expl_list_with_clean = (
+                    [clean_expl] + list(expl_list) if clean_expl else list(expl_list)
+                )
+
+                # Y-axis positions
+                y_locs = range(len(expl_list_with_clean))
+
+                # Collect y-axis labels
+                y_labels = []
+                expl_names = []
+                for e in expl_list_with_clean:
+                    accuracy = e.accuracy
+                    generalization_level = round(
+                        100 * e.transform_n / e.transform_n_max
+                    )
+                    label = f"{accuracy:.2f} ({generalization_level}%)"
+                    y_labels.append(label)
+                    expl_names.append(e.name)
+
+                # Get all unique features
+                all_items = set()
+                for e in expl_list_with_clean:
+                    all_items.update(e.get_ranking())
+
+                all_items_list = sorted(all_items)
+                cmap = plt.get_cmap("tab20")
+
+                # Plot lines for each feature
+                for idx, item in enumerate(all_items_list):
+                    ranks = []
+                    y_vals = []
+                    for i, e in enumerate(expl_list_with_clean):
+                        ranking = e.get_ranking()
+                        if item in ranking:
+                            ranks.append(ranking.index(item) + 1)
+                            y_vals.append(i)
+
+                    # Only plot if there's at least one valid rank
+                    if ranks:
+                        color = cmap(idx % 20)
+                        ax.plot(
+                            ranks,
+                            y_vals,
+                            marker="o",
+                            linestyle="-",
+                            label=item,
+                            color=color,
+                        )
+
+                ax.set_yticks(y_locs)
+                ax.set_yticklabels(y_labels)
+                ax.invert_yaxis()
+
+                # Create a second y-axis showing explanation names
+                ax2 = ax.twinx()
+                ax2.set_yticks(y_locs)
+                ax2.set_yticklabels(expl_names[::-1])
+                ax2.set_ylim(ax.get_ylim())
+                ax2.invert_yaxis()
+                ax2.set_ylabel("Explanation Name")
+
+                # Calculate the maximum rank
+                max_rank = 0
+                for e in expl_list_with_clean:
+                    max_rank = max(max_rank, len(e.get_ranking()))
+
+                ax.set_xlim(0, max_rank + 1)
+                ax.set_xticks(range(1, max_rank + 1))
+                ax.set_xlabel("Rank")
+                ax.set_ylabel("Model Accuracy (Generalization %)")
+
+                ax.grid(axis="x", linestyle="--", alpha=0.5)
+                for s in ["top", "right"]:
+                    ax.spines[s].set_visible(False)
+
+                ax.set_title(f"{classifier}-{anon_model_name}")
+
+        # Create a single legend for the entire figure
+        handles, labels = [], []
+        for ax in axes:
+            for handle, label in zip(*ax.get_legend_handles_labels()):
+                if label not in labels:
+                    handles.append(handle)
+                    labels.append(label)
+            # ax.get_legend().remove()  # Remove individual subplot legends
+        fig.legend(
+            handles,
+            labels,
+            loc="upper right",
+            bbox_to_anchor=(1.0, 0.95),
+            title="Features",
+            fontsize="small",
+        )
+
+        fig.tight_layout(
+            rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
+        )  # Adjust rect to make space for the global legend
+        plt.show()
+
 
 pl = PlotCreator(
     [
@@ -339,10 +504,7 @@ pl = PlotCreator(
     ["usa_house", "cervic_cancer", "adult"],
     "./data/",
 )
-pl.plot_line(
-    classifier="forest",
-    method="shap",
-    dataset="adult",
-)
+# Example usage of plot_line_2:
+pl.plot_line_2(classifier1="forest", classifier2="MLP", dataset="adult", method="shap")
 # Example usage of plot_line:
 # pl.plot_line(classifier="forest", method="shap", dataset="adult")
