@@ -25,11 +25,11 @@ class Explanation:
 
 
 class Dataset:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, dataset_name: str) -> None:
         self.explanations: dict[str, dict[str, list[Explanation]]] = {}
 
         for method in PlotCreator.EXPLANATION_METHODS:
-            method_dir = os.path.join(path, method)
+            method_dir = os.path.join(path, method, dataset_name)
             self.explanations[method] = self._load_method_dir(method_dir)
 
     def _load_method_dir(self, path: str) -> dict[str, list[Explanation]]:
@@ -102,6 +102,17 @@ class Dataset:
         return (ref, rnk[: len(ref)])
 
 
+class Model:
+    MODEL_TYPES = ["knn", "forest", "MLP"]
+
+    def __init__(self, name: str, path: str, datasets: list[str]) -> None:
+        self.name = name
+        self.path = path
+        self.datasets: dict[str, Dataset] = {}
+        for dataset_name in datasets:
+            self.datasets[dataset_name] = Dataset(path, dataset_name)
+
+
 class PlotCreator:
     ANONYMIZATION_MODELS = [
         ("t", "t_closeness"),
@@ -112,63 +123,72 @@ class PlotCreator:
 
     EXPLANATION_METHODS = ["shap", "lime"]
 
-    def __init__(self, paths: list[str], base_path: str = "../data/") -> None:
-        self.paths = paths
-        self.datasets: dict[str, Dataset] = {}
+    def __init__(
+        self, models: list[str], datasets: list[str], base_path: str = "../data/"
+    ) -> None:
+        self.models: dict[str, Model] = {}
 
-        for dataset in self.paths:
-            dataset_path = os.path.join(base_path, f"{dataset}/")
+        for model in models:
+            model_path = os.path.join(base_path, f"{model}/")
 
-            if not os.path.isdir(dataset_path):
-                raise FileNotFoundError(f"Directory not found: {dataset_path}")
+            if not os.path.isdir(model_path):
+                raise FileNotFoundError(f"Directory not found: {model_path}")
 
-            self.datasets[dataset] = Dataset(dataset_path)
+            self.models[model] = Model(model, model_path, datasets)
 
     def plot_heatmap(
         self,
         datasets: Optional[list[str]] = None,
         methods: Optional[list[str]] = None,
-        models: Optional[list[str]] = None,
+        explanation_methods: Optional[list[str]] = None,
+        classifiers: Optional[list[str]] = None,
     ) -> None:
-        # Collect Kendall-tau series across datasets/methods/models
+        # Collect Kendall-tau series across datasets/methods
         # If a parameter is None or empty, include all values for that filter.
+        # methods: filters anonymization models (e.g., 't_closeness', 'l_diversity', etc.)
+        # explanation_methods: filters explanation methods ('lime' or 'shap')
+        # classifiers: includes only specified classifier types (e.g., 'knn', 'forest', 'MLP')
         rows = []
         labels = []
         max_len = 0
 
-        for dataset_name, dataset in self.datasets.items():
-            # apply dataset filter if provided (non-empty)
-            if datasets:
-                if dataset_name not in datasets:
+        for model_name, model in self.models.items():
+            # apply classifier filter if provided (non-empty)
+            if classifiers and model_name not in classifiers:
+                continue
+
+            for dataset_name, dataset in model.datasets.items():
+                # apply dataset filter if provided (non-empty)
+                if datasets and dataset_name not in datasets:
                     continue
 
-            kendal_taus = dataset.get_kendal_taus()
-            for method, model_map in kendal_taus.items():
-                # apply method filter if provided (non-empty)
-                if methods:
-                    if method not in methods:
+                kendal_taus = dataset.get_kendal_taus()
+                for method, anon_model_map in kendal_taus.items():
+                    # apply explanation method filter if provided (non-empty)
+                    if explanation_methods and method not in explanation_methods:
                         continue
 
-                for model_name, kt_list in model_map.items():
-                    # apply model filter if provided (non-empty)
-                    if models:
-                        if model_name not in models:
+                    for anon_model_name, kt_list in anon_model_map.items():
+                        # apply anonymization method filter if provided (non-empty)
+                        if methods and anon_model_name not in methods:
                             continue
 
-                    # extract p-values from Kendalltau results (0..1)
-                    vals = []
-                    for kt in kt_list:
-                        pval = getattr(kt, "pvalue", None)
-                        if pval is not None:
-                            try:
-                                vals.append(float(pval))
-                            except Exception:
-                                vals.append(np.nan)
+                        # extract p-values from Kendalltau results (0..1)
+                        vals = []
+                        for kt in kt_list:
+                            pval = getattr(kt, "pvalue", None)
+                            if pval is not None:
+                                try:
+                                    vals.append(float(pval))
+                                except Exception:
+                                    vals.append(np.nan)
 
-                    labels.append(f"{dataset_name}-{method}-{model_name}")
-                    rows.append(vals)
-                    if len(vals) > max_len:
-                        max_len = len(vals)
+                        labels.append(
+                            f"{model_name}-{dataset_name}-{method}-{anon_model_name}"
+                        )
+                        rows.append(vals)
+                        if len(vals) > max_len:
+                            max_len = len(vals)
 
         if not rows:
             raise RuntimeError("No Kendall tau data available to plot")
@@ -194,14 +214,29 @@ class PlotCreator:
             linecolor="lightgrey",
         )
         ax.set_xlabel("Anonymization Level")
-        ax.set_ylabel("Dataset-Method-Model")
-        if methods and len(methods) == 1:
-            plt.title(f"Kendall Tau p-values for {methods[0]}")
+        ax.set_ylabel("Model-Dataset-Method-AnonModel")
+        if explanation_methods and len(explanation_methods) == 1:
+            plt.title(f"Kendall Tau p-values for {explanation_methods[0]}")
         else:
             plt.title("Kendall Tau p-values")
         plt.tight_layout()
         plt.show()
 
 
-# pl = PlotCreator(["usa_house","cervic_cancer", "adult"], "./data/")
-# pl.plot_heatmap(methods=['shap'])
+pl = PlotCreator(
+    [
+        "forest",
+        "MLP",
+    ],
+    ["usa_house", "cervic_cancer", "adult"],
+    "./data/",
+)
+pl.plot_heatmap(
+    classifiers=["forest"],
+    explanation_methods=["shap"],
+    datasets=["adult"],
+    methods=[
+        "t_closeness",
+        "l_diversity",
+    ],
+)
