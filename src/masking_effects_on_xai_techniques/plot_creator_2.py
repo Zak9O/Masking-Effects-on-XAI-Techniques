@@ -3,8 +3,9 @@ from scipy import stats
 import os
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 import seaborn as sns
-from typing import Optional
+from typing import Any, Callable, Optional
 
 
 class Explanation:
@@ -102,6 +103,22 @@ class Model:
             self.datasets[dataset_name] = Dataset(path, dataset_name)
 
 
+class _PlotResult:
+    def __init__(
+        self,
+        value: dict[str, Any],
+        classifier: str,
+        anonymizatino_method: str,
+        explanation_method: str,
+        dataset: str,
+    ) -> None:
+        self.value = value
+        self.classifier = classifier
+        self.anonymizatino_method = anonymizatino_method
+        self.explanation_method = explanation_method
+        self.dataset = dataset
+
+
 class PlotCreator:
     ANONYMIZATION_MODELS = [
         ("t", "t_closeness"),
@@ -124,6 +141,194 @@ class PlotCreator:
                 raise FileNotFoundError(f"Directory not found: {model_path}")
 
             self.models[model] = Model(model, model_path, datasets)
+
+    def _get_kendal_taus(
+        self, f: Callable[[list[Explanation], Explanation], dict[str, Any]]
+    ) -> list[_PlotResult]:
+        result = []
+        for method in ["shap", "lime"]:
+            for classifier in ["MLP", "forest", "knn"]:
+                for dataset in self.models[classifier].datasets.keys():
+                    explanations = (
+                        self.models[classifier].datasets[dataset].explanations[method]
+                    )
+                    for anon_model_name, expl_list in explanations.items():
+                        if anon_model_name == "clean":
+                            continue
+
+                        result.append(
+                            _PlotResult(
+                                value=f(expl_list, explanations["clean"][0]),
+                                classifier=classifier,
+                                anonymizatino_method=anon_model_name,
+                                explanation_method=method,
+                                dataset=dataset,
+                            )
+                        )
+        return result
+
+    def plot_histogram(self, dataset: str, threshold: float = 0.05) -> None:
+        def sorter(x: list[Explanation], clean: Explanation):
+            ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
+            return {"value": ran}
+
+        result = self._get_kendal_taus(sorter)
+
+        def f(x: _PlotResult) -> _PlotResult:
+            diffs = [abs(a - b) for a, b in zip(x.value["value"], x.value["value"][1:])]
+            count = sum([1 for diff in diffs if diff > threshold])
+            x.value["value"] = count
+            return x
+
+        lime = list(
+            map(
+                f,
+                filter(
+                    lambda x: x.explanation_method == "lime" and x.dataset == dataset,
+                    result,
+                ),
+            )
+        )
+        shap = list(
+            map(
+                f,
+                filter(
+                    lambda x: x.explanation_method == "shap" and x.dataset == dataset,
+                    result,
+                ),
+            )
+        )
+
+        # Normalize LIME values per anonymization method so entries sharing the same
+        # anonymization_method are divided by their group sum.
+        # for _, anon_method in self.ANONYMIZATION_MODELS:
+        #     for classifier in set(r.classifier for r in lime):
+        #         lime_element = next(filter(lambda x: x.classifier == classifier and x.anonymizatino_method == anon_method, lime))
+        #         shap_element = next(filter(lambda x: x.classifier == classifier and x.anonymizatino_method == anon_method, shap))
+        #         total = lime_element.value + shap_element.value
+        #         lime_element.value = lime_element.value / total
+        #         shap_element.value = shap_element.value / total
+
+        # Get unique classifiers and anonymization methods
+        classifiers = sorted(set([r.classifier for r in lime]))
+        anon_methods = sorted(set([r.anonymizatino_method for r in lime]))
+
+        # Create data structure for plotting
+        # Structure: {anon_method: {classifier: std_value}}
+        lime_data = {}
+        shap_data = {}
+
+        for anon_method in anon_methods:
+            lime_data[anon_method] = {}
+            shap_data[anon_method] = {}
+            for classifier in classifiers:
+                # Find the corresponding result
+                lime_result = next(
+                    (
+                        r
+                        for r in lime
+                        if r.classifier == classifier
+                        and r.anonymizatino_method == anon_method
+                    ),
+                    None,
+                )
+                shap_result = next(
+                    (
+                        r
+                        for r in shap
+                        if r.classifier == classifier
+                        and r.anonymizatino_method == anon_method
+                    ),
+                    None,
+                )
+
+                lime_data[anon_method][classifier] = (
+                    lime_result.value["value"] if lime_result else 0
+                )
+                shap_data[anon_method][classifier] = (
+                    shap_result.value["value"] if shap_result else 0
+                )
+
+        # Create a single plot
+        fig, ax = plt.subplots(1, 1, figsize=(14, 6))
+
+        # Set up bar positions - three groups (one per classifier)
+        # Each group has 8 bars in pairs (LIME + SHAP for each method)
+        x = np.arange(len(classifiers))
+        width = 0.1  # width of each bar
+        n_methods = len(anon_methods)
+        total_bars = n_methods * 2  # LIME + SHAP
+        offset = width * (total_bars - 1) / 2
+
+        # Define colors for anonymization methods
+        cmap = plt.get_cmap("tab10")
+        colors = [cmap(i) for i in range(n_methods)]
+
+        # Plot bars in pairs (LIME and SHAP together for each anonymization method)
+        for i, anon_method in enumerate(anon_methods):
+            # LIME bar (filled) - only add to legend on first iteration
+            lime_values = [
+                lime_data[anon_method][classifier] for classifier in classifiers
+            ]
+            lime_positions = x - offset + (i * 2) * width
+            ax.bar(
+                lime_positions,
+                lime_values,
+                width,
+                label=anon_method if i == 0 else "",
+                color=colors[i],
+                alpha=0.8,
+            )
+
+            # SHAP bar (semi-transparent with solid outline) - right next to LIME
+            shap_values = [
+                shap_data[anon_method][classifier] for classifier in classifiers
+            ]
+            shap_positions = x - offset + (i * 2 + 1) * width
+            ax.bar(
+                shap_positions,
+                shap_values,
+                width,
+                label="" if i < len(anon_methods) - 1 else "",
+                color=colors[i],
+                alpha=0.3,
+                edgecolor=colors[i],
+                linewidth=1.5,
+            )
+
+        # Create custom legend combining both color and shading information
+
+        # Color legend (anonymization methods)
+        color_handles = [
+            Patch(facecolor=colors[i], label=method)
+            for i, method in enumerate(anon_methods)
+        ]
+
+        # Shading legend (explanation methods)
+        shading_handles = [
+            Patch(facecolor="gray", alpha=0.8, label="LIME"),
+            Patch(
+                facecolor="gray",
+                alpha=0.3,
+                edgecolor="gray",
+                linewidth=1.5,
+                label="SHAP",
+            ),
+        ]
+
+        # Combine all handles in one legend with a separator
+        all_handles = color_handles + shading_handles
+        ax.legend(handles=all_handles, bbox_to_anchor=(1.05, 1), loc="upper left")
+
+        ax.set_xlabel("Classifier")
+        ax.set_ylabel(f"# of times |$\\Delta$p-value|> {threshold}")
+        ax.set_title(f"Stability LIME vs SHAP for {dataset}")
+        ax.set_xticks(x)
+        ax.set_xticklabels(classifiers)
+        ax.grid(axis="y", alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
 
     def plot_heatmap(
         self,
@@ -660,15 +865,13 @@ class PlotCreator:
         plt.show()
 
 
-# pl = PlotCreator(
-#     [
-#         "MLP",
-#         "forest",
-#         "knn"
-#     ],
-#     ["adult", "usa_house", "cervic_cancer"],
-#     "./data/",
-# )
+if __name__ == "__main__":
+    pl = PlotCreator(
+        ["MLP", "forest", "knn"],
+        ["adult", "old_adult", "usa_house", "cervic_cancer"],
+        "./data/",
+    )
+    pl.plot_histogram("usa_house")
 # pl.plot_consistency(
 #     "adult"
 # )
