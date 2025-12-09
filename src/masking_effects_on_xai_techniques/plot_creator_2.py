@@ -833,182 +833,216 @@ class PlotCreator:
         plt.tight_layout()
         plt.show()
 
-    def plot_line_compare(
-        self,
-        classifier1: str,
-        classifier2: str,
-        dataset: str,
-        method: str,
-        model_type: str,
-    ) -> None:
-        # Create two plots side by side using plot_line for two different classifiers
-        # classifier1: first classifier type
-        # classifier2: second classifier type
-        # dataset: dataset name
-        # method: explanation method
+    def plot_line_compare(self, dataset: str, filters: list[str]) -> None:
+        # Filters must have form "classifier-method-anonmodel"]"
+        filters_list = []
+        for f in filters:
+            parts = f.split("-")
+            if len(parts) != 3:
+                raise ValueError(
+                    f"Invalid filter format: {f}. Example filter: 'knn-shap-t_closeness'"
+                )
+            classifier, method, anon_model = parts
+            value = {
+                "classifier": classifier,
+                "method": method,
+                "anon_model": anon_model,
+            }
+            filters_list.append(value)
 
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(20, 8))
+        results = self._filter_data(
+            lambda x, clean: {
+                "rankings": [clean.get_ranking()] + [e.get_ranking() for e in x],
+                "accuracy": [clean.accuracy] + [e.accuracy for e in x],
+                "generalization_levels": [0]
+                + [round(100 * e.transform_n / e.transform_n_max) for e in x],
+                "names": [clean.name] + [e.name for e in x],
+            }
+        )
+        result = list(
+            filter(
+                lambda x: any(
+                    x.classifier == f["classifier"]
+                    and x.explanation_method == f["method"]
+                    and x.anonymizatino_method == f["anon_model"]
+                    and x.dataset == dataset
+                    for f in filters_list
+                ),
+                results,
+            )
+        )
+
+        num_plots = len(result)
+
+        if num_plots == 0:
+            raise ValueError("No data to plot with the given filters")
+
+        # Determine grid layout based on number of plots
+        if num_plots == 1:
+            nrows, ncols = 1, 1
+        elif num_plots == 2:
+            nrows, ncols = 1, 2
+        elif num_plots == 3:
+            nrows, ncols = 1, 3
+        elif num_plots == 4:
+            nrows, ncols = 2, 2
+        else:
+            # For 5+, arrange as 2xN layout
+            nrows = 2
+            ncols = (num_plots + 1) // 2
+
+        # Create figure with appropriate size
+        fig_width = 10 * ncols
+        fig_height = 8 * nrows
+        fig, axes = plt.subplots(
+            nrows=nrows, ncols=ncols, figsize=(fig_width, fig_height)
+        )
+
+        # Ensure axes is always a 2D array for consistent indexing
+        if num_plots == 1:
+            axes = np.array([[axes]])
+        elif num_plots <= 2:
+            axes = axes.reshape(1, -1)
+        else:
+            axes = axes.reshape(nrows, ncols) if axes.ndim == 1 else axes
+
         fig.suptitle(
-            f"Feature Rank Comparison: {classifier1} vs {classifier2} on {dataset} using {method}",
+            f"Feature Rank Comparison for {dataset}",
             fontsize=16,
         )
 
-        classifiers_to_plot = [classifier1, classifier2]
+        # Track all items for consistent coloring across all subplots
+        all_items_set = set()
+        for plot_result in result:
+            for ranking in plot_result.value["rankings"]:
+                all_items_set.update(ranking)
 
-        for ax_idx, classifier in enumerate(classifiers_to_plot):
-            ax = axes[ax_idx]
-            plt.sca(ax)
+        all_items_list = sorted(all_items_set)
+        cmap = plt.get_cmap("tab20")
 
-            # Get the explanations for this classifier
-            if classifier not in self.models:
-                ax.text(
-                    0.5,
-                    0.5,
-                    f"Classifier '{classifier}' not found",
-                    ha="center",
-                    va="center",
-                )
-                ax.set_title(f"{classifier}")
-                continue
-
-            model = self.models[classifier]
-
-            if dataset not in model.datasets:
-                ax.text(
-                    0.5, 0.5, f"Dataset '{dataset}' not found", ha="center", va="center"
-                )
-                ax.set_title(f"{classifier}")
-                continue
-
-            dataset_obj = model.datasets[dataset]
-
-            if method not in dataset_obj.explanations:
-                ax.text(
-                    0.5, 0.5, f"Method '{method}' not found", ha="center", va="center"
-                )
-                ax.set_title(f"{classifier}")
-                continue
-
-            explanations = dataset_obj.explanations[method]
-
-            # Collect anonymization models
-            anon_models_list = []
-            for anon_model_name, expl_list in explanations.items():
-                if anon_model_name == "clean":
+        # Plot each result
+        plot_idx = 0
+        for i in range(nrows):
+            for j in range(ncols):
+                if plot_idx >= num_plots:
+                    # Hide unused subplots
+                    axes[i, j].set_visible(False)
+                    plot_idx += 1
                     continue
-                if anon_model_name == model_type:
-                    anon_models_list.append((anon_model_name, expl_list))
 
-            # Only use first anonymization method for this simplified version
-            if anon_models_list:
-                anon_model_name, expl_list = anon_models_list[0]
+                ax = axes[i, j]
+                plot_result = result[plot_idx]
 
-                # Get clean explanation
-                clean_expl = explanations.get("clean", [None])[0]
-                expl_list_with_clean = (
-                    [clean_expl] + list(expl_list) if clean_expl else list(expl_list)
-                )
+                rankings = plot_result.value["rankings"]
+                accuracies = plot_result.value["accuracy"]
+                generalization_levels = plot_result.value["generalization_levels"]
+                model_names = plot_result.value["names"]
 
-                # Y-axis positions
-                y_locs = range(len(expl_list_with_clean))
+                y_locs = range(len(model_names))
 
-                # Collect y-axis labels
-                y_labels = []
-                expl_names = []
-                for e in expl_list_with_clean:
-                    accuracy = e.accuracy
-                    generalization_level = round(
-                        100 * e.transform_n / e.transform_n_max
-                    )
-                    label = f"{accuracy:.2f} ({generalization_level}%)"
-                    y_labels.append(label)
-                    expl_names.append(e.name)
-
-                # Get all unique features
-                all_items = set()
-                for e in expl_list_with_clean:
-                    all_items.update(e.get_ranking())
-
-                all_items_list = sorted(all_items)
-                cmap = plt.get_cmap("tab20")
-
-                # Plot lines for each feature
+                # Plot each feature as a line
                 for idx, item in enumerate(all_items_list):
                     ranks = []
                     y_vals = []
-                    for i, e in enumerate(expl_list_with_clean):
-                        ranking = e.get_ranking()
+                    for j_inner, ranking in enumerate(rankings):
                         if item in ranking:
                             ranks.append(ranking.index(item) + 1)
-                            y_vals.append(i)
+                            y_vals.append(j_inner)
+                        else:
+                            ranks.append(None)
+                            y_vals.append(j_inner)
 
-                    # Only plot if there's at least one valid rank
-                    if ranks:
-                        color = cmap(idx % 20)
-                        ax.plot(
-                            ranks,
-                            y_vals,
-                            marker="o",
-                            linestyle="-",
-                            label=item,
-                            color=color,
-                        )
+                    color = cmap(idx % 20)
+                    ax.plot(
+                        ranks,
+                        y_locs,
+                        marker="o",
+                        linestyle="-",
+                        label=item,
+                        color=color,
+                    )
 
                 ax.set_yticks(y_locs)
-                ax.set_yticklabels(y_labels)
+                ax.set_yticklabels(model_names)
                 ax.invert_yaxis()
 
-                # Create a second y-axis showing explanation names
-                ax2 = ax.twinx()
-                ax2.set_yticks(y_locs)
-                ax2.set_yticklabels(expl_names[::-1])
-                ax2.set_ylim(ax.get_ylim())
-                ax2.invert_yaxis()
-                ax2.set_ylabel("Explanation Name")
+                # Calculate the maximum rank for the current subplot
+                max_rank_for_subplot = 0
+                for ranking in rankings:
+                    max_rank_for_subplot = max(max_rank_for_subplot, len(ranking))
 
-                # Calculate the maximum rank
-                max_rank = 0
-                for e in expl_list_with_clean:
-                    max_rank = max(max_rank, len(e.get_ranking()))
-
-                ax.set_xlim(0, max_rank + 1)
-                ax.set_xticks(range(1, max_rank + 1))
+                ax.set_xlim(0, max_rank_for_subplot + 1)
+                ax.set_xticks(range(1, max_rank_for_subplot + 1))
                 ax.set_xlabel("Rank")
-                ax.set_ylabel("Model Accuracy (Generalization %)")
 
                 ax.grid(axis="x", linestyle="--", alpha=0.5)
-                for s in ["top", "right"]:
+                for s in ["top", "right", "left"]:
                     ax.spines[s].set_visible(False)
 
-                ax.set_title(f"{classifier}-{anon_model_name}")
+                # Add secondary y-axis with accuracy and generalization level
+                ax2 = ax.twinx()
+                ax2.set_yticks(y_locs)
 
-        # Create a single legend for the entire figure
+                # Generate new yticklabels with both accuracy and generalization level
+                formatted_labels = []
+                for k in range(len(accuracies)):
+                    label = f"{accuracies[k]:.2f} ({generalization_levels[k]}%)"
+                    formatted_labels.append(label)
+                ax2.set_yticklabels(formatted_labels)
+
+                ax2.set_ylabel("Model Accuracy (Generalization Level)")
+                ax2.invert_yaxis()
+                ax2.set_ylim(ax.get_ylim())
+
+                ax.set_title(
+                    f"{plot_result.classifier}-{plot_result.explanation_method}-{plot_result.anonymizatino_method}"
+                )
+
+                plot_idx += 1
+
+        # Create a single legend in the lower left corner of the first plot
         handles, labels = [], []
-        for ax in axes:
-            for handle, label in zip(*ax.get_legend_handles_labels()):
-                if label not in labels:
-                    handles.append(handle)
-                    labels.append(label)
-            # ax.get_legend().remove()  # Remove individual subplot legends
-        fig.legend(
+        for i in range(nrows):
+            for j in range(ncols):
+                ax = axes[i, j]
+                if ax.get_visible():
+                    for handle, label in zip(*ax.get_legend_handles_labels()):
+                        if label not in labels:
+                            handles.append(handle)
+                            labels.append(label)
+
+        # Remove individual subplot legends
+        for i in range(nrows):
+            for j in range(ncols):
+                ax = axes[i, j]
+                if ax.get_visible() and ax.get_legend():
+                    ax.get_legend().remove()
+
+        # Add legend to the first subplot (lower left corner)
+        axes[0, 0].legend(
             handles,
             labels,
-            loc="upper right",
-            bbox_to_anchor=(1.0, 0.95),
+            loc="lower right",
             title="Features",
             fontsize="small",
         )
 
-        fig.tight_layout(
-            rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
-        )  # Adjust rect to make space for the global legend
+        fig.tight_layout()
         plt.show()
 
 
 if __name__ == "__main__":
     pl = PlotCreator(
         ["MLP", "forest", "knn"],
-        ["adult", "old_adult", "usa_house", "cervic_cancer"],
+        ["old_adult", "usa_house", "cervic_cancer"],
         "./data/",
     )
-    pl.plot_utility("usa_house")
+    pl.plot_line_compare(
+        "usa_house",
+        [
+            "knn-lime-k_anonymity",
+            "forest-lime-k_anonymity",
+            "MLP-lime-k_anonymity",
+            "MLP-shap-k_anonymity",
+        ],
+    )
