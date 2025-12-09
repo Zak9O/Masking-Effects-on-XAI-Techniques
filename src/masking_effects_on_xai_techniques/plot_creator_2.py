@@ -25,6 +25,9 @@ class Explanation:
             x[0] for i, x in enumerate(importance) if i < len(self._ranking_values)
         ]
 
+    def get_transform_level(self) -> float:
+        return self.transform_n / self.transform_n_max
+
     def get_ranking(self) -> list[str]:
         return self._ranking
 
@@ -142,7 +145,7 @@ class PlotCreator:
 
             self.models[model] = Model(model, model_path, datasets)
 
-    def _get_kendal_taus(
+    def _filter_data(
         self, f: Callable[[list[Explanation], Explanation], dict[str, Any]]
     ) -> list[_PlotResult]:
         result = []
@@ -167,12 +170,121 @@ class PlotCreator:
                         )
         return result
 
+    def plot_utility(self, dataset: str, classifier: str) -> None:
+        def _filter(x: list[Explanation], clean: Explanation):
+            transform_levels = [0] + [e.get_transform_level() for e in x]
+            accuracies = [clean.accuracy] + [e.accuracy for e in x]
+            return {"accuracies": accuracies, "generalization levels": transform_levels}
+
+        result = self._filter_data(_filter)
+        result = list(
+            filter(
+                lambda x: x.classifier == classifier
+                and x.dataset == dataset
+                and x.explanation_method == "lime",
+                result,
+            )
+        )
+
+        # Create plot
+        fig, ax = plt.subplots(1, 1, figsize=(12, 7))
+
+        # Define marker styles for different anonymization methods
+        marker_styles = {
+            "k_anonymity": "o",
+            "l_diversity": "s",
+            "t_closeness": "^",
+            "alpha_k_anonymity": "D",
+        }
+
+        # Color map for accuracy values
+        cmap = plt.get_cmap("viridis")
+
+        # Get global min/max accuracy for consistent color mapping across all series
+        from matplotlib.colors import Normalize
+
+        global_min_acc = min([min(p.value["accuracies"]) for p in result])
+        global_max_acc = max([max(p.value["accuracies"]) for p in result])
+        norm = Normalize(vmin=global_min_acc, vmax=global_max_acc)
+
+        # Plot each series (one per classifier + anonymization method combination)
+        for plot_result in result:
+            gen_levels = plot_result.value["generalization levels"]
+            accuracies = plot_result.value["accuracies"]
+
+            # Create indices for x-axis
+            indices = list(range(len(gen_levels)))
+
+            # Get marker style for this anonymization method
+            marker = marker_styles.get(plot_result.anonymizatino_method, "o")
+
+            # Plot lines connecting the points
+            ax.plot(indices, gen_levels, "k-", alpha=0.3, linewidth=1)
+
+            # Plot points with colors based on accuracy
+            for i, (idx, gen_level, acc) in enumerate(
+                zip(indices, gen_levels, accuracies)
+            ):
+                # Get normalized accuracy for this specific point
+                normalized_acc = norm(acc)
+                color = cmap(normalized_acc)
+                ax.scatter(
+                    idx,
+                    gen_level,
+                    marker=marker,
+                    s=100,
+                    color=color,
+                    label=f"{plot_result.anonymizatino_method}" if i == 0 else "",
+                )
+
+        # Add colorbar for accuracy values
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax)
+        cbar.set_label("Accuracy")
+
+        # Add legend for marker styles
+        from matplotlib.lines import Line2D
+
+        legend_elements = [
+            Line2D(
+                [0],
+                [0],
+                marker=marker,
+                color="w",
+                markerfacecolor="gray",
+                markersize=8,
+                label=method,
+            )
+            for method, marker in marker_styles.items()
+        ]
+        ax.legend(
+            handles=legend_elements, loc="upper right", title="Anonymization Method"
+        )
+
+        ax.set_xlabel("Index")
+        ax.set_ylabel("Generalization Level (%)")
+        ax.set_title(f"Stability - {dataset}")
+        # Set x-tick labels with 'clean' as the first label
+        all_indices = list(
+            range(max([len(p.value["generalization levels"]) for p in result]))
+        )
+        tick_labels = ["clean"] + [str(i) for i in range(1, len(all_indices))]
+        ax.set_xticks(all_indices[: len(tick_labels)])
+        ax.set_xticklabels(tick_labels[: len(all_indices)])
+
+        ax.invert_yaxis()
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
     def plot_histogram(self, dataset: str, threshold: float = 0.05) -> None:
-        def sorter(x: list[Explanation], clean: Explanation):
+        def _filter(x: list[Explanation], clean: Explanation):
             ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
             return {"value": ran}
 
-        result = self._get_kendal_taus(sorter)
+        result = self._filter_data(_filter)
 
         def f(x: _PlotResult) -> _PlotResult:
             diffs = [abs(a - b) for a, b in zip(x.value["value"], x.value["value"][1:])]
@@ -871,26 +983,4 @@ if __name__ == "__main__":
         ["adult", "old_adult", "usa_house", "cervic_cancer"],
         "./data/",
     )
-    pl.plot_histogram("usa_house")
-# pl.plot_consistency(
-#     "adult"
-# )
-# pl = PlotCreator(
-#     ["forest", "MLP", "knn"],
-#     ["usa_house", "usa_house_old", "cervic_cancer", "adult"],
-#     # ["adult"],
-#     "./data/",
-# )
-# pl.plot_stability(["MLP"], ["usa_house"], ["t_closeness"])
-# pl.plot_stability(
-#     ["MLP", "forest", "knn"],
-#     ["usa_house_old"],
-#     ["k_anonymity", "t_closeness", "l_diversity", "alpha_k_anonymity"],
-# )
-# pl.plot_heatmap()
-# pl.plot_heatmap(datasets=["usa_house"], methods=['l_diversity'])
-# pl.plot_stability(classifiers=["MLP", "forest"], dataset=["adult", "usa_house", "cervic_cancer"])
-# Example usage of plot_line_2:
-# pl.plot_line_compare(classifier1="forest", classifier2="MLP", dataset="adult", method="shap")
-# Example usage of plot_line:
-# pl.plot_line(classifier="forest", method="shap", dataset="adult")
+    pl.plot_utility("usa_house", "knn")
