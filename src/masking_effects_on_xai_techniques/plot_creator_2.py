@@ -170,7 +170,7 @@ class PlotCreator:
                         )
         return result
 
-    def plot_utility(self, dataset: str, classifier: str) -> None:
+    def plot_utility(self, dataset: str, classifiers: list[str]) -> None:
         def _filter(x: list[Explanation], clean: Explanation):
             transform_levels = [0] + [e.get_transform_level() for e in x]
             accuracies = [clean.accuracy] + [e.accuracy for e in x]
@@ -179,15 +179,22 @@ class PlotCreator:
         result = self._filter_data(_filter)
         result = list(
             filter(
-                lambda x: x.classifier == classifier
+                lambda x: x.classifier in classifiers
                 and x.dataset == dataset
                 and x.explanation_method == "lime",
                 result,
             )
         )
 
-        # Create plot
-        fig, ax = plt.subplots(1, 1, figsize=(12, 7))
+        # Create subplots, one for each classifier
+        n_classifiers = len(classifiers)
+        fig, axes = plt.subplots(
+            1, n_classifiers, figsize=(6 * n_classifiers, 7), sharey=True
+        )
+
+        # Handle case where there's only one classifier
+        if n_classifiers == 1:
+            axes = [axes]
 
         # Define marker styles for different anonymization methods
         marker_styles = {
@@ -207,43 +214,71 @@ class PlotCreator:
         global_max_acc = max([max(p.value["accuracies"]) for p in result])
         norm = Normalize(vmin=global_min_acc, vmax=global_max_acc)
 
-        # Plot each series (one per classifier + anonymization method combination)
-        for plot_result in result:
-            gen_levels = plot_result.value["generalization levels"]
-            accuracies = plot_result.value["accuracies"]
+        # Plot for each classifier
+        for ax, classifier in zip(axes, classifiers):
+            # Filter results for this classifier
+            classifier_result = [p for p in result if p.classifier == classifier]
 
-            # Create indices for x-axis
-            indices = list(range(len(gen_levels)))
+            if not classifier_result:
+                continue
 
-            # Get marker style for this anonymization method
-            marker = marker_styles.get(plot_result.anonymizatino_method, "o")
+            # Plot each series for this classifier
+            for plot_result in classifier_result:
+                gen_levels = plot_result.value["generalization levels"]
+                accuracies = plot_result.value["accuracies"]
 
-            # Plot lines connecting the points
-            ax.plot(indices, gen_levels, "k-", alpha=0.3, linewidth=1)
+                # Create indices for x-axis
+                indices = list(range(len(gen_levels)))
 
-            # Plot points with colors based on accuracy
-            for i, (idx, gen_level, acc) in enumerate(
-                zip(indices, gen_levels, accuracies)
-            ):
-                # Get normalized accuracy for this specific point
-                normalized_acc = norm(acc)
-                color = cmap(normalized_acc)
-                ax.scatter(
-                    idx,
-                    gen_level,
-                    marker=marker,
-                    s=100,
-                    color=color,
-                    label=f"{plot_result.anonymizatino_method}" if i == 0 else "",
+                # Get marker style for this anonymization method
+                marker = marker_styles.get(plot_result.anonymizatino_method, "o")
+
+                # Plot lines connecting the points
+                ax.plot(indices, gen_levels, "k-", alpha=0.3, linewidth=1)
+
+                # Plot points with colors based on accuracy
+                for i, (idx, gen_level, acc) in enumerate(
+                    zip(indices, gen_levels, accuracies)
+                ):
+                    # Get normalized accuracy for this specific point
+                    normalized_acc = norm(acc)
+                    color = cmap(normalized_acc)
+                    ax.scatter(
+                        idx,
+                        gen_level,
+                        marker=marker,
+                        s=100,
+                        color=color,
+                        label=f"{plot_result.anonymizatino_method}" if i == 0 else "",
+                    )
+
+            # Set x-tick labels with 'clean' as the first label
+            all_indices = list(
+                range(
+                    max(
+                        [
+                            len(p.value["generalization levels"])
+                            for p in classifier_result
+                        ]
+                    )
                 )
+            )
+            tick_labels = ["clean"] + [str(i) for i in range(1, len(all_indices))]
+            ax.set_xticks(all_indices[: len(tick_labels)])
+            ax.set_xticklabels(tick_labels[: len(all_indices)])
 
-        # Add colorbar for accuracy values
+            ax.set_xlabel("Generalization Level Index")
+            ax.set_title(f"{classifier.upper()} - {dataset}")
+            ax.invert_yaxis()
+            ax.grid(True, alpha=0.3)
+
+        # Add colorbar for accuracy values on the rightmost subplot
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=ax)
+        cbar = plt.colorbar(sm, ax=axes[-1])
         cbar.set_label("Accuracy")
 
-        # Add legend for marker styles
+        # Add legend for marker styles on the first subplot
         from matplotlib.lines import Line2D
 
         legend_elements = [
@@ -258,23 +293,11 @@ class PlotCreator:
             )
             for method, marker in marker_styles.items()
         ]
-        ax.legend(
+        axes[0].legend(
             handles=legend_elements, loc="upper right", title="Anonymization Method"
         )
 
-        ax.set_xlabel("Index")
-        ax.set_ylabel("Generalization Level (%)")
-        ax.set_title(f"Stability - {dataset}")
-        # Set x-tick labels with 'clean' as the first label
-        all_indices = list(
-            range(max([len(p.value["generalization levels"]) for p in result]))
-        )
-        tick_labels = ["clean"] + [str(i) for i in range(1, len(all_indices))]
-        ax.set_xticks(all_indices[: len(tick_labels)])
-        ax.set_xticklabels(tick_labels[: len(all_indices)])
-
-        ax.invert_yaxis()
-        ax.grid(True, alpha=0.3)
+        axes[0].set_ylabel("Generalization Level (%)")
 
         plt.tight_layout()
         plt.show()
@@ -983,4 +1006,4 @@ if __name__ == "__main__":
         ["adult", "old_adult", "usa_house", "cervic_cancer"],
         "./data/",
     )
-    pl.plot_utility("usa_house", "knn")
+    pl.plot_utility("usa_house", ["knn"])  # , "forest", "MLP"])
