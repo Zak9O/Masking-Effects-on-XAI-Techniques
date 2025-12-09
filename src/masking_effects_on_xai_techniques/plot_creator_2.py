@@ -170,7 +170,12 @@ class PlotCreator:
                         )
         return result
 
-    def plot_utility(self, dataset: str, classifiers: list[str]) -> None:
+    def plot_utility(
+        self, dataset: str, classifiers: Optional[list[str]] = None
+    ) -> None:
+        if classifiers is None:
+            classifiers = ["knn", "forest", "MLP"]
+
         def _filter(x: list[Explanation], clean: Explanation):
             transform_levels = [0] + [e.get_transform_level() for e in x]
             accuracies = [clean.accuracy] + [e.accuracy for e in x]
@@ -1006,4 +1011,4 @@ if __name__ == "__main__":
         ["adult", "old_adult", "usa_house", "cervic_cancer"],
         "./data/",
     )
-    pl.plot_utility("usa_house", ["knn"])  # , "forest", "MLP"])
+    pl.plot_utility("usa_house")

@@ -4,7 +4,7 @@
 SRC_DIR="$WHOME/Downloads/out"
 
 # 1. Create the 'tmp' working directory from the source
-#cp -r "$SRC_DIR" tmp
+# cp -r "$SRC_DIR" tmp
 
 # 2. Define the new parent directory outside of 'tmp'
 DEST_ROOT="../data"
@@ -43,4 +43,4 @@ done
 
 
 # 4. Cleanup the empty 'tmp' directories left behind.
-find tmp -type d -empty -delete
+# find tmp -type d -empty -delete

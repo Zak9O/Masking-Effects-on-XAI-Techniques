@@ -371,8 +371,9 @@ if __name__ == "__main__":
         dataset.quasi_identifiers,
         create_hierachy(dataset.quasi_identifiers, dataset.hierarchy_path),
     )
+    ratio = transform_n / transform_n_max
     logging.info(
-        f"Considering dataset that has been generalized {round(transform_n / transform_n_max, 1) * 100}%"
+        f"Considering dataset that has been generalized {round(ratio, 1) * 100}%"
     )
 
     if args.explainer_type == "shap":
