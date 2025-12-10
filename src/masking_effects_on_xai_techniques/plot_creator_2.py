@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 from scipy import stats
 import os
 import matplotlib.pyplot as plt
@@ -307,9 +308,26 @@ class PlotCreator:
         plt.tight_layout()
         plt.show()
 
-    def plot_histogram(self, dataset: str, threshold: float = 0.05) -> None:
+    def plot_histogram(
+        self,
+        dataset: str,
+        anon_models: list[str] | None = None,
+        threshold: float = 0.05,
+        start_from: int | None = None,
+    ) -> None:
         def _filter(x: list[Explanation], clean: Explanation):
-            ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
+            if start_from is None:
+                ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
+            else:
+                try:
+                    clean = x[start_from]
+                    x = x[start_from + 1 :]
+                except IndexError:
+                    return {"value": []}
+                if len(clean.get_ranking()) < 2:
+                    ran = []
+                else:
+                    ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
             return {"value": ran}
 
         result = self._filter_data(_filter)
@@ -324,7 +342,11 @@ class PlotCreator:
             map(
                 f,
                 filter(
-                    lambda x: x.explanation_method == "lime" and x.dataset == dataset,
+                    lambda x: x.explanation_method == "lime"
+                    and x.dataset == dataset
+                    and (
+                        x.anonymizatino_method in anon_models if anon_models else True
+                    ),
                     result,
                 ),
             )
@@ -333,21 +355,15 @@ class PlotCreator:
             map(
                 f,
                 filter(
-                    lambda x: x.explanation_method == "shap" and x.dataset == dataset,
+                    lambda x: x.explanation_method == "shap"
+                    and x.dataset == dataset
+                    and (
+                        x.anonymizatino_method in anon_models if anon_models else True
+                    ),
                     result,
                 ),
             )
         )
-
-        # Normalize LIME values per anonymization method so entries sharing the same
-        # anonymization_method are divided by their group sum.
-        # for _, anon_method in self.ANONYMIZATION_MODELS:
-        #     for classifier in set(r.classifier for r in lime):
-        #         lime_element = next(filter(lambda x: x.classifier == classifier and x.anonymizatino_method == anon_method, lime))
-        #         shap_element = next(filter(lambda x: x.classifier == classifier and x.anonymizatino_method == anon_method, shap))
-        #         total = lime_element.value + shap_element.value
-        #         lime_element.value = lime_element.value / total
-        #         shap_element.value = shap_element.value / total
 
         # Get unique classifiers and anonymization methods
         classifiers = sorted(set([r.classifier for r in lime]))
@@ -713,7 +729,164 @@ class PlotCreator:
         )  # Adjust rect to make space for the global legend
         plt.show()
 
-    def plot_consistency(self, dataset: str, methods: list[str] | None = None) -> None:
+    def plot_consistency_with_accuracy(
+        self, dataset: str, methods: list[str] | None = None
+    ) -> None:
+        def _filter(x: list[Explanation], clean: Explanation):
+            ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
+            return {
+                "value": ran,
+                "generalization_levels": [
+                    round(100 * e.transform_n / e.transform_n_max) for e in x
+                ],
+            }
+
+        result = self._filter_data(_filter)
+
+        def f(x: list[_PlotResult], y: _PlotResult) -> list[_PlotResult]:
+            existing_item = next(
+                (
+                    item
+                    for item in x
+                    if item.anonymizatino_method == y.anonymizatino_method
+                ),
+                None,
+            )
+            if existing_item is None:
+                return [y] + x
+
+            existing_item.value["value"] = [
+                (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
+                for e, r in zip(existing_item.value["value"], y.value["value"])
+            ]
+            return x
+
+        lime = list(
+            reduce(
+                f,
+                filter(
+                    lambda x: x.explanation_method == "lime" and x.dataset == dataset,
+                    result,
+                ),
+                [],
+            )
+        )
+        shap = list(
+            reduce(
+                f,
+                filter(
+                    lambda x: x.explanation_method == "shap" and x.dataset == dataset,
+                    result,
+                ),
+                [],
+            )
+        )
+        # Add plotting code below
+        data = {"shap": {}, "lime": {}}
+        for item in lime:
+            data["lime"][item.anonymizatino_method] = item.value
+        for item in shap:
+            data["shap"][item.anonymizatino_method] = item.value
+
+        above = {}
+        for method in data["lime"].keys():
+            above[method] = sum(
+                1
+                for s, la in zip(
+                    data["shap"][method]["value"], data["lime"][method]["value"]
+                )
+                if la > s
+            )
+            above[method] /= len(data["lime"][method]["value"])
+        avg_above = sum(above.values()) / len(above)
+
+        # Plotting
+        plt.figure(figsize=(10, 6))
+        colors = {
+            "t_closeness": "tab:orange",
+            "k_anonymity": "tab:purple",
+            "alpha_k_anonymity": "tab:red",
+            "l_diversity": "tab:brown",
+        }
+        linestyles = {
+            "shap": "-",
+            "lime": "--",
+        }
+        markers = {
+            "shap": "o",
+            "lime": "s",
+        }
+        max_gen_level = 0
+        for method, method_data in data.items():
+            for anon_model_name, values_dict in method_data.items():
+                x_vals = np.array(values_dict["generalization_levels"], dtype=float)
+                max_gen_level = max(
+                    max_gen_level, max(values_dict["generalization_levels"])
+                )
+                plt.plot(
+                    x_vals,
+                    values_dict["value"],
+                    color=colors.get(anon_model_name, None),
+                    linestyle=linestyles.get(method, "-"),
+                    marker=markers.get(method, "o"),
+                    markersize=6,
+                    linewidth=2.0,
+                    alpha=0.85,
+                )
+
+        plt.xlabel("Generalization Level (%)")
+        plt.ylabel("Kendall Tau p-value")
+        plt.title(f"{dataset} Kendall Tau p-value Comparison: LIME vs SHAP")
+
+        # Legends: colors for anonymization models, linestyles for methods
+        ax = plt.gca()
+        color_handles = [
+            Line2D(
+                [0],
+                [0],
+                color=col,
+                lw=2,
+                label=f"{anon} ({above.get(anon, 0) * 100:.1f}%)",
+            )
+            for anon, col in colors.items()
+            if anon in above
+        ]
+
+        linestyle_handles = [
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                lw=2,
+                linestyle=ls,
+                label=f"{method} ({avg_above * 100:.1f}%)"
+                if method == "lime"
+                else f"{method}",
+            )
+            for method, ls in list(linestyles.items())[::-1]
+        ]
+
+        anon_legend = ax.legend(
+            handles=color_handles,
+            title="Anonymization (# LIME > SHAP %)",
+            loc="lower right",
+        )
+        ax.add_artist(anon_legend)
+        ax.legend(
+            handles=linestyle_handles,
+            title="Method",
+            loc="upper right",
+        )
+        plt.grid(True, linestyle="--", alpha=0.5)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_consistency(
+        self,
+        dataset: str,
+        methods: list[str] | None = None,
+        legend_placement: str = "upper right",
+    ) -> None:
         data = {"shap": {}, "lime": {}}
         for classifier in ["MLP", "forest", "knn"]:
             for method in data.keys():
@@ -732,6 +905,8 @@ class PlotCreator:
                         ).pvalue
                         for e in expl_list
                     ]
+                    if len(ran) == 0:
+                        continue
                     # tmp = explanations['clean'] + expl_list
                     # for e1, e2 in zip(tmp[:-1], tmp[1:]):
                     #     kt = e2.compute_kendal_tau(e1.get_ranking())
@@ -821,7 +996,7 @@ class PlotCreator:
         anon_legend = ax.legend(
             handles=color_handles,
             title="Anonymization (# LIME > SHAP %)",
-            loc="upper left",
+            loc=legend_placement,
         )
         ax.add_artist(anon_legend)
         ax.legend(
@@ -1034,15 +1209,17 @@ class PlotCreator:
 if __name__ == "__main__":
     pl = PlotCreator(
         ["MLP", "forest", "knn"],
-        ["old_adult", "usa_house", "cervic_cancer"],
+        ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
-    pl.plot_line_compare(
-        "usa_house",
-        [
-            "knn-lime-k_anonymity",
-            "forest-lime-k_anonymity",
-            "MLP-lime-k_anonymity",
-            "MLP-shap-k_anonymity",
-        ],
-    )
+    pl.plot_consistency_with_accuracy("usa_house")
+    # pl.plot_histogram("cervic_cancer",threshold=0.05, include_clean=False)
+    # pl.plot_line_compare(
+    #     "usa_house",
+    #     [
+    #         "knn-lime-k_anonymity",
+    #         "forest-lime-k_anonymity",
+    #         "MLP-lime-k_anonymity",
+    #         "MLP-shap-k_anonymity",
+    #     ],
+    # )
