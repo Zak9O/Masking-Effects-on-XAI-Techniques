@@ -222,17 +222,17 @@ class PlotCreator:
         if average_models:
             n_classifiers = 1
             plot_labels = ["Averaged Models"]
+            fig, axes = plt.subplots(1, 1, figsize=(7, 7), sharey=True)
+            axes = [axes]
         else:
             n_classifiers = len(classifiers)
             plot_labels = classifiers
-
-        fig, axes = plt.subplots(
-            1, n_classifiers, figsize=(6 * n_classifiers, 7), sharey=True
-        )
-
-        # Handle case where there's only one classifier
-        if n_classifiers == 1:
-            axes = [axes]
+            fig, axes = plt.subplots(
+                1, n_classifiers, figsize=(6 * n_classifiers, 7), sharey=True
+            )
+            # Handle case where there's only one classifier
+            if n_classifiers == 1:
+                axes = [axes]
 
         # Define marker styles for different anonymization methods
         marker_styles = {
@@ -753,11 +753,12 @@ class PlotCreator:
                     handles.append(handle)
                     labels.append(label)
             ax.get_legend().remove()  # Remove individual subplot legends
-        fig.legend(
+
+        # Place legend in the lower left subplot (axes[2]) at lower left
+        axes[3].legend(
             handles,
             labels,
-            loc="upper right",
-            bbox_to_anchor=(1.0, 0.95),
+            loc="lower right",
             title="Features",
             fontsize="small",
         )
@@ -1250,6 +1251,7 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
+    # pl.plot_line("forest", "adult", "shap")
     pl.plot_utility("usa_house", average_models=True)
     # pl.plot_consistency_with_accuracy("usa_house")
     # pl.plot_histogram("cervic_cancer",threshold=0.05, include_clean=False)
