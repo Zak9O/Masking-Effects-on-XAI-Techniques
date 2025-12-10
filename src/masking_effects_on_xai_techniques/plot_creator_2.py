@@ -172,7 +172,10 @@ class PlotCreator:
         return result
 
     def plot_utility(
-        self, dataset: str, classifiers: Optional[list[str]] = None
+        self,
+        dataset: str,
+        classifiers: Optional[list[str]] = None,
+        average_models=False,
     ) -> None:
         if classifiers is None:
             classifiers = ["knn", "forest", "MLP"]
@@ -191,9 +194,38 @@ class PlotCreator:
                 result,
             )
         )
+        if average_models:
 
-        # Create subplots, one for each classifier
-        n_classifiers = len(classifiers)
+            def f(x: list[_PlotResult], y: _PlotResult) -> list[_PlotResult]:
+                existing_item = next(
+                    (
+                        item
+                        for item in x
+                        if item.anonymizatino_method == y.anonymizatino_method
+                    ),
+                    None,
+                )
+                if existing_item is None:
+                    return [y] + x
+
+                existing_item.value["accuracies"] = [
+                    (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
+                    for e, r in zip(
+                        existing_item.value["accuracies"], y.value["accuracies"]
+                    )
+                ]
+                return x
+
+            result = list(reduce(f, result, []))
+
+        # Create subplots, one for each classifier (or single plot if averaging)
+        if average_models:
+            n_classifiers = 1
+            plot_labels = ["Averaged Models"]
+        else:
+            n_classifiers = len(classifiers)
+            plot_labels = classifiers
+
         fig, axes = plt.subplots(
             1, n_classifiers, figsize=(6 * n_classifiers, 7), sharey=True
         )
@@ -221,9 +253,12 @@ class PlotCreator:
         norm = Normalize(vmin=global_min_acc, vmax=global_max_acc)
 
         # Plot for each classifier
-        for ax, classifier in zip(axes, classifiers):
-            # Filter results for this classifier
-            classifier_result = [p for p in result if p.classifier == classifier]
+        for ax, label in zip(axes, plot_labels):
+            # Filter results for this classifier (or use all results if averaging)
+            if average_models:
+                classifier_result = result
+            else:
+                classifier_result = [p for p in result if p.classifier == label]
 
             if not classifier_result:
                 continue
@@ -274,7 +309,10 @@ class PlotCreator:
             ax.set_xticklabels(tick_labels[: len(all_indices)])
 
             ax.set_xlabel("Generalization Level Index")
-            ax.set_title(f"{classifier.upper()} - {dataset}")
+            if average_models:
+                ax.set_title(f"{label} - {dataset}")
+            else:
+                ax.set_title(f"{label.upper()} - {dataset}")
             ax.invert_yaxis()
             ax.grid(True, alpha=0.3)
 
@@ -1212,7 +1250,8 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
-    pl.plot_consistency_with_accuracy("usa_house")
+    pl.plot_utility("usa_house", average_models=True)
+    # pl.plot_consistency_with_accuracy("usa_house")
     # pl.plot_histogram("cervic_cancer",threshold=0.05, include_clean=False)
     # pl.plot_line_compare(
     #     "usa_house",
