@@ -308,13 +308,9 @@ class PlotCreator:
             ax.set_xticks(all_indices[: len(tick_labels)])
             ax.set_xticklabels(tick_labels[: len(all_indices)])
 
-            ax.set_xlabel("Generalization Level Index")
-            if average_models:
-                ax.set_title(f"{label} - {self.string_beautify(dataset)}")
-            else:
-                ax.set_title(
-                    f"{self.string_beautify(label)} - {self.string_beautify(dataset)}"
-                )
+            ax.set_xlabel("Generalization Level")
+            if not average_models:
+                ax.set_title(f"{self.string_beautify(label)}")
             ax.invert_yaxis()
             ax.grid(True, alpha=0.3)
 
@@ -344,8 +340,11 @@ class PlotCreator:
         )
 
         axes[0].set_ylabel("Generalization Level (%)")
+        # Use a figure-level title so it shows above all subplots
+        fig.suptitle(self.string_beautify(dataset), fontsize=14)
 
-        plt.tight_layout()
+        # Leave room for the suptitle
+        plt.tight_layout(rect=(0, 0, 1, 0.96))
         plt.show()
 
     def plot_histogram(
@@ -695,7 +694,7 @@ class PlotCreator:
         explanationss = self.models[classifier].datasets[dataset].explanations[method]
 
         fig.suptitle(
-            f"Feature Rank Comparison for {self.string_beautify(classifier)}-{self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
+            f"Feature Rank Comparison for {self.string_beautify(classifier)} {self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
             fontsize=16,
         )
 
@@ -770,7 +769,7 @@ class PlotCreator:
             ax2.invert_yaxis()
             ax2.set_ylim(ax.get_ylim())
 
-            ax.set_title(f"Model: {self.string_beautify(model)}")
+            ax.set_title(f"{self.string_beautify(model)}")
 
         # Create a single legend for the entire figure
         handles, labels = [], []
@@ -1279,9 +1278,9 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_line("forest", "adult", "shap")
-    # pl.plot_utility("usa_house", average_models=True)
+    pl.plot_utility("usa_house", average_models=True)
     # pl.plot_consistency("usa_house")
-    pl.plot_histogram("cervic_cancer", threshold=0.05)
+    # pl.plot_histogram("cervic_cancer", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
     #     [
