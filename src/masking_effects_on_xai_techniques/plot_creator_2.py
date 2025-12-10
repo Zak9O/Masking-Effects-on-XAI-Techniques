@@ -476,7 +476,7 @@ class PlotCreator:
                 alpha=0.8,
             )
 
-            # SHAP bar (semi-transparent with solid outline) - right next to LIME
+            # SHAP bar (striped pattern) - right next to LIME
             shap_values = [
                 shap_data[anon_method][classifier] for classifier in classifiers
             ]
@@ -486,10 +486,11 @@ class PlotCreator:
                 shap_values,
                 width,
                 label="" if i < len(anon_methods) - 1 else "",
-                color=colors[i],
-                alpha=0.3,
+                color="none",
+                alpha=1.0,
                 edgecolor=colors[i],
-                linewidth=1.5,
+                # linewidth=2.5,
+                hatch="///",
             )
 
         # Create custom legend combining both color and shading information
@@ -504,17 +505,18 @@ class PlotCreator:
         shading_handles = [
             Patch(facecolor="gray", alpha=0.8, label="LIME"),
             Patch(
-                facecolor="gray",
-                alpha=0.3,
+                facecolor="none",
+                alpha=1.0,
                 edgecolor="gray",
                 linewidth=1.5,
+                hatch="///",
                 label="SHAP",
             ),
         ]
 
         # Combine all handles in one legend with a separator
         all_handles = color_handles + shading_handles
-        ax.legend(handles=all_handles, bbox_to_anchor=(1.05, 1), loc="upper left")
+        ax.legend(handles=all_handles, loc="upper center", ncol=len(anon_methods) + 2)
 
         ax.set_xlabel("Classifier")
         ax.set_ylabel(f"# of times |$\\Delta$p-value|> {threshold}")
@@ -1278,8 +1280,8 @@ if __name__ == "__main__":
     )
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_utility("usa_house", average_models=True)
-    pl.plot_consistency("usa_house")
-    # pl.plot_histogram("cervic_cancer",threshold=0.05, include_clean=False)
+    # pl.plot_consistency("usa_house")
+    pl.plot_histogram("cervic_cancer", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
     #     [
