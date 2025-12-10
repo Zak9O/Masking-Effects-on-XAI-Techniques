@@ -659,6 +659,27 @@ class PlotCreator:
         plt.tight_layout()
         plt.show()
 
+    def string_beautify(self, s: str) -> str:
+        if s == "t_closeness":
+            return "$t$-closeness"
+        elif s == "k_anonymity":
+            return "$k$-anonymity"
+        elif s == "l_diversity":
+            return "$\\ell$-diversity"
+        elif s == "alpha_k_anonymity":
+            return "$(\\alpha,k$)-anonymity"
+        elif s == "knn":
+            return "k-NN"
+        elif s == "forest":
+            return "Random Forest"
+        elif s == "usa_house":
+            return "USA House"
+        elif s == "adult":
+            return "Adult"
+        elif s == "cervic_cancer":
+            return "Cervical Cancer"
+        return s
+
     def plot_line(
         self, classifier: str, dataset: str, method: str, only: list[str] | None = None
     ) -> None:
@@ -1032,16 +1053,12 @@ class PlotCreator:
             for method, ls in list(linestyles.items())[::-1]
         ]
 
-        anon_legend = ax.legend(
-            handles=color_handles,
-            title="Anonymization (# LIME > SHAP %)",
-            loc=legend_placement,
-        )
-        ax.add_artist(anon_legend)
+        # Combine both legends into one
+        combined_handles = color_handles + linestyle_handles
         ax.legend(
-            handles=linestyle_handles,
-            title="Method",
-            loc="upper right",
+            handles=combined_handles,
+            title="Anonymization (# LIME > SHAP %)",
+            loc="best",
         )
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
@@ -1252,8 +1269,8 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_line("forest", "adult", "shap")
-    pl.plot_utility("usa_house", average_models=True)
-    # pl.plot_consistency_with_accuracy("usa_house")
+    # pl.plot_utility("usa_house", average_models=True)
+    pl.plot_consistency("usa_house")
     # pl.plot_histogram("cervic_cancer",threshold=0.05, include_clean=False)
     # pl.plot_line_compare(
     #     "usa_house",
