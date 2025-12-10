@@ -310,9 +310,11 @@ class PlotCreator:
 
             ax.set_xlabel("Generalization Level Index")
             if average_models:
-                ax.set_title(f"{label} - {dataset}")
+                ax.set_title(f"{label} - {self.string_beautify(dataset)}")
             else:
-                ax.set_title(f"{label.upper()} - {dataset}")
+                ax.set_title(
+                    f"{self.string_beautify(label)} - {self.string_beautify(dataset)}"
+                )
             ax.invert_yaxis()
             ax.grid(True, alpha=0.3)
 
@@ -333,7 +335,7 @@ class PlotCreator:
                 color="w",
                 markerfacecolor="gray",
                 markersize=8,
-                label=method,
+                label=self.string_beautify(method),
             )
             for method, marker in marker_styles.items()
         ]
@@ -494,7 +496,7 @@ class PlotCreator:
 
         # Color legend (anonymization methods)
         color_handles = [
-            Patch(facecolor=colors[i], label=method)
+            Patch(facecolor=colors[i], label=self.string_beautify(method))
             for i, method in enumerate(anon_methods)
         ]
 
@@ -516,9 +518,9 @@ class PlotCreator:
 
         ax.set_xlabel("Classifier")
         ax.set_ylabel(f"# of times |$\\Delta$p-value|> {threshold}")
-        ax.set_title(f"Stability LIME vs SHAP for {dataset}")
+        ax.set_title(f"Stability LIME vs SHAP for {self.string_beautify(dataset)}")
         ax.set_xticks(x)
-        ax.set_xticklabels(classifiers)
+        ax.set_xticklabels([self.string_beautify(c) for c in classifiers])
         ax.grid(axis="y", alpha=0.3)
 
         plt.tight_layout()
@@ -653,7 +655,9 @@ class PlotCreator:
         ax.set_xlabel("Anonymization Level")
         ax.set_ylabel("Model-Dataset-Method-AnonModel")
         if explanation_methods and len(explanation_methods) == 1:
-            plt.title(f"Kendall Tau p-values for {explanation_methods[0]}")
+            plt.title(
+                f"Kendall Tau p-values for {self.string_beautify(explanation_methods[0])}"
+            )
         else:
             plt.title("Kendall Tau p-values")
         plt.tight_layout()
@@ -689,7 +693,7 @@ class PlotCreator:
         explanationss = self.models[classifier].datasets[dataset].explanations[method]
 
         fig.suptitle(
-            f"Feature Rank Comparison for {f'{classifier}-{dataset}'} using {method}",
+            f"Feature Rank Comparison for {self.string_beautify(classifier)}-{self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
             fontsize=16,
         )
 
@@ -764,7 +768,7 @@ class PlotCreator:
             ax2.invert_yaxis()
             ax2.set_ylim(ax.get_ylim())
 
-            ax.set_title(f"Model: {model}")
+            ax.set_title(f"Model: {self.string_beautify(model)}")
 
         # Create a single legend for the entire figure
         handles, labels = [], []
@@ -896,7 +900,9 @@ class PlotCreator:
 
         plt.xlabel("Generalization Level (%)")
         plt.ylabel("Kendall Tau p-value")
-        plt.title(f"{dataset} Kendall Tau p-value Comparison: LIME vs SHAP")
+        plt.title(
+            f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP"
+        )
 
         # Legends: colors for anonymization models, linestyles for methods
         ax = plt.gca()
@@ -906,7 +912,7 @@ class PlotCreator:
                 [0],
                 color=col,
                 lw=2,
-                label=f"{anon} ({above.get(anon, 0) * 100:.1f}%)",
+                label=f"{self.string_beautify(anon)} ({above.get(anon, 0) * 100:.1f}%)",
             )
             for anon, col in colors.items()
             if anon in above
@@ -919,9 +925,9 @@ class PlotCreator:
                 color="black",
                 lw=2,
                 linestyle=ls,
-                label=f"{method} ({avg_above * 100:.1f}%)"
+                label=f"{self.string_beautify(method).upper()} ({avg_above * 100:.1f}%)"
                 if method == "lime"
-                else f"{method}",
+                else f"{self.string_beautify(method).upper()}",
             )
             for method, ls in list(linestyles.items())[::-1]
         ]
@@ -1023,7 +1029,9 @@ class PlotCreator:
         plt.xlabel("Anonymization Level")
         plt.xticks(range(1, max_len + 1))
         plt.ylabel("Kendall Tau p-value")
-        plt.title(f"{dataset} Kendall Tau p-value Comparison: LIME vs SHAP")
+        plt.title(
+            f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP"
+        )
 
         # Legends: colors for anonymization models, linestyles for methods
         ax = plt.gca()
@@ -1033,7 +1041,7 @@ class PlotCreator:
                 [0],
                 color=col,
                 lw=2,
-                label=f"{anon} ({above.get(anon, 0) * 100:.1f}%)",
+                label=f"{self.string_beautify(anon)} ({above.get(anon, 0) * 100:.1f}%)",
             )
             for anon, col in colors.items()
             if anon in above
@@ -1046,9 +1054,9 @@ class PlotCreator:
                 color="black",
                 lw=2,
                 linestyle=ls,
-                label=f"{method} ({avg_above * 100:.1f}%)"
+                label=f"{self.string_beautify(method).upper()} ({avg_above * 100:.1f}%)"
                 if method == "lime"
-                else f"{method}",
+                else f"{self.string_beautify(method).upper()}",
             )
             for method, ls in list(linestyles.items())[::-1]
         ]
@@ -1226,7 +1234,7 @@ class PlotCreator:
                 ax2.set_ylim(ax.get_ylim())
 
                 ax.set_title(
-                    f"{plot_result.classifier}-{plot_result.explanation_method}-{plot_result.anonymizatino_method}"
+                    f"{self.string_beautify(plot_result.classifier)}-{self.string_beautify(plot_result.explanation_method).upper()}-{self.string_beautify(plot_result.anonymizatino_method)}"
                 )
 
                 plot_idx += 1
