@@ -132,6 +132,9 @@ def shap_importance(
         d_type = type(df[feature].iloc[0])
         if d_type is not str:
             skip_columns.append(feature)
+        else:
+            # The feautre has been categorized
+            numeric_features.remove(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
     df = anon_prep.encode(df, hierarchy_path=dataset.hierarchy_path, skip=skip_columns)
@@ -165,7 +168,7 @@ def shap_importance(
     logging.info(f"Model training finished. Score: {score}")
 
     def f(x):  # pyright: ignore[reportRedeclaration]
-        return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue]
+        return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     background_data = shap.utils.sample(X_train, 100)
     explainer = shap.KernelExplainer(f, background_data)
@@ -190,6 +193,9 @@ def lime_importance(df: pd.DataFrame, dataset: Dataset):
         d_type = type(df[feature].iloc[0])
         if d_type is not str:
             skip_columns.append(feature)
+        else:
+            # The feautre has been categorized
+            numeric_features.remove(feature)
     logging.info(f"Skipping encoding for numeric features: {skip_columns}")
 
     df, encoding_mappings = anon_prep._encode_inner(  # pyright: ignore[reportPrivateUsage]
