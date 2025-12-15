@@ -102,7 +102,8 @@ def one_hot_encoding(df: DataFrame, feature: str, encoder) -> DataFrame:
 
 
 def importance_values_to_str(features: list[str], importance) -> list[tuple[str, int]]:
-    return [(features[i], importance[i]) for i in np.argsort(-importance)]
+    agg_importance = np.sum(np.abs(importance), axis=1)
+    return [(features[i], agg_importance[i]) for i in np.argsort(-agg_importance)]
 
 
 def create_one_hot_encoder(df: pd.DataFrame, feature: str) -> OneHotEncoder:
@@ -168,7 +169,7 @@ def shap_importance(
     logging.info(f"Model training finished. Score: {score}")
 
     def f(x):  # pyright: ignore[reportRedeclaration]
-        return clf.predict_proba(x)[:, 1]  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+        return clf.predict_proba(x)  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     background_data = shap.utils.sample(X_train, 100)
     explainer = shap.KernelExplainer(f, background_data)
