@@ -1023,15 +1023,10 @@ class PlotCreator:
             "shap": "-",
             "lime": "--",
         }
-        x_offsets = {
-            "shap": -0.05,
-            "lime": 0.05,
-        }
         max_len = 0
         for method, method_data in data.items():
             for anon_model_name, values in method_data.items():
                 x_vals = np.arange(1, len(values) + 1, dtype=float)
-                x_vals += x_offsets.get(method, 0.0)
                 max_len = max(max_len, len(x_vals))
                 plt.plot(
                     x_vals,
