@@ -17,6 +17,8 @@ class Explanation:
             print(f"File not found: {path}!")
             return
         self.name = os.path.basename(path).split(".csv", 1)[0]
+        if "l_diversity" in path:
+            self.name = str(int(float(self.name)))
         self.accuracy = float(array[0][1])
         self.transform_n = int(float(array[1][1]))
         self.transform_n_max = int(float(array[2][1]))
@@ -694,9 +696,10 @@ class PlotCreator:
         explanationss = self.models[classifier].datasets[dataset].explanations[method]
 
         fig.suptitle(
-            f"Feature Rank Comparison for {self.string_beautify(classifier)} {self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
+            f"Rank Topology of {self.string_beautify(classifier)} {self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
             fontsize=16,
         )
+        fig.supxlabel("Dataset")
 
         for i, (_, model) in enumerate(PlotCreator.ANONYMIZATION_MODELS):
             if only is not None and model not in only:
@@ -752,6 +755,18 @@ class PlotCreator:
             for s in ["top", "right", "left"]:
                 ax.spines[s].set_visible(False)
 
+            if model == "t_closeness":
+                ylabel = "Anonymization Level ($t$)"
+            elif model == "k_anonymity":
+                ylabel = "Anonymization Level ($k$)"
+            elif model == "l_diversity":
+                ylabel = "Anonymization Level ($\\ell$)"
+            elif model == "alpha_k_anonymity":
+                ylabel = "Anonymization Level ($\\alpha$)"
+            else:
+                ylabel = "Anonymization Level"
+
+            ax.set_ylabel(ylabel)
             ax2 = ax.twinx()
             accuracies = [e.accuracy for e in explanations]
             generalization_levels = [
@@ -982,7 +997,7 @@ class PlotCreator:
                     existing = data[method].get(anon_model_name, [])
                     if existing:
                         data[method][anon_model_name] = [
-                            (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
+                            (np.nan_to_num(e, r) + np.nan_to_num(e, r)) / 2
                             for e, r in zip(existing, ran)
                         ]
                     else:
@@ -1278,9 +1293,9 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_line("forest", "adult", "shap")
-    pl.plot_utility("usa_house", average_models=True)
-    # pl.plot_consistency("usa_house")
-    # pl.plot_histogram("cervic_cancer", threshold=0.05)
+    # pl.plot_line("MLP", "usa_house", "shap")
+    pl.plot_consistency("usa_house")
+    # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
     #     [
