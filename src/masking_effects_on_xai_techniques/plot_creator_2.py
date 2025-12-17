@@ -192,7 +192,14 @@ class PlotCreator:
         def _filter(x: list[Explanation], clean: Explanation):
             transform_levels = [0] + [e.get_transform_level() * 100 for e in x]
             accuracies = [clean.accuracy] + [e.accuracy for e in x]
-            return {"accuracies": accuracies, "generalization levels": transform_levels}
+            features_left = [len(clean.get_ranking())] + [
+                len(e.get_ranking()) for e in x
+            ]
+            return {
+                "accuracies": accuracies,
+                "generalization levels": transform_levels,
+                "features left": features_left,
+            }
 
         result = self._filter_data(_filter)
         result = list(
@@ -223,9 +230,28 @@ class PlotCreator:
                         existing_item.value["accuracies"], y.value["accuracies"]
                     )
                 ]
+                existing_item.value["features left"] = [
+                    np.max([e, r])
+                    for e, r in zip(
+                        existing_item.value["features left"], y.value["features left"]
+                    )
+                ]
+
                 return x
 
             result = list(reduce(f, result, []))
+
+        def f(x: dict[int, float], y: _PlotResult) -> dict[int, float]:
+            gen_levels = y.value.get("generalization levels", [])
+            feat_left = y.value.get("features left", [])
+            for gen_level, feat_count in zip(gen_levels, feat_left):
+                if int(feat_count) == 0:
+                    continue
+                existing_gen_level = x.get(int(feat_count), 999999)
+                x[int(feat_count)] = min(existing_gen_level, gen_level)
+            return x
+
+        min_feature_left_y = reduce(f, result, {})
 
         # Create subplots, one for each classifier (or single plot if averaging)
         if average_models:
@@ -256,6 +282,7 @@ class PlotCreator:
 
         # Get global min/max accuracy for consistent color mapping across all series
         from matplotlib.colors import Normalize
+        from matplotlib.ticker import MaxNLocator
 
         global_min_acc = min([min(p.value["accuracies"]) for p in result])
         global_max_acc = max([max(p.value["accuracies"]) for p in result])
@@ -321,12 +348,14 @@ class PlotCreator:
             if not average_models:
                 ax.set_title(f"{self.string_beautify(label)}")
             ax.invert_yaxis()
+            # Only whole numbers on the primary y-axis
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
             ax.grid(True, alpha=0.3)
 
         # Add colorbar for accuracy values on the rightmost subplot
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=axes[-1])
+        cbar = plt.colorbar(sm, ax=axes[-1], pad=0.15)
         cbar.set_label("Accuracy")
 
         # Add legend for marker styles on the first subplot
@@ -349,6 +378,19 @@ class PlotCreator:
         )
 
         axes[0].set_ylabel("Generalization Level (%)")
+
+        # Add twin y-axis with feature labels only on the rightmost plot
+        if min_feature_left_y and len(axes) > 0:
+            ax_r = axes[-1].twinx()
+            ax_r.set_ylim(axes[-1].get_ylim())
+            # ax_r.invert_yaxis()
+            items_sorted = sorted(min_feature_left_y.items(), key=lambda kv: kv[1])
+            y_ticks = [y for _, y in items_sorted]
+            y_labels = [str(k) for k, _ in items_sorted]
+            ax_r.set_yticks(y_ticks)
+            ax_r.set_yticklabels(y_labels)
+            ax_r.set_ylabel("Features left", labelpad=15)
+
         # Use a figure-level title so it shows above all subplots
         fig.suptitle(self.string_beautify(dataset), fontsize=14)
 
@@ -1303,8 +1345,8 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
-    # pl.plot_utility("usa_house", ["MLP", "forest", "knn"])
-    pl.plot_histogram("usa_house", threshold=0.05)
+    pl.plot_utility("usa_house", ["MLP", "forest", "knn"], False)
+    # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
     # pl.plot_consistency("usa_house")
