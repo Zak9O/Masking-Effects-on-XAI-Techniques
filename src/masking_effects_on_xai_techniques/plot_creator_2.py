@@ -744,6 +744,8 @@ class PlotCreator:
             return "USA House Equal-Width"
         elif s == "adult":
             return "Adult"
+        elif s == "adult_imbalanced":
+            return "Adult Imbalanced"
         elif s == "cervic_cancer":
             return "Cervical Cancer"
         return s

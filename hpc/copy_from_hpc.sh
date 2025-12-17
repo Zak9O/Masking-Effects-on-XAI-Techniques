@@ -1,4 +1,15 @@
 #!/bin/sh
+# Use the following command to delete all folders called data in the tmp file
+# find . -type d -name "data" -exec rm -rf {} +
+# # Use to delete all t_closeness files called 1.0
+# find . -type f -path "*/t_closeness/1.0.csv.npy" -delete
+rm -rf ./tmp
+scp -i ~/.ssh/id_ed25519 -r s225169@transfer.gbar.dtu.dk:explanation/out/ tmp
+cd tmp
+find . -type d -name "data" -exec rm -rf {} +
+find . -type f -path "*/t_closeness/1.0.csv.npy" -delete
+
+cd ..
 
 # The original source directory (renamed to tmp)
 SRC_DIR="$WHOME/Downloads/out"
