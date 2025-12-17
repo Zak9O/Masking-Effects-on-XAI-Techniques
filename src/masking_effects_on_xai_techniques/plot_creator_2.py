@@ -257,13 +257,19 @@ class PlotCreator:
         if average_models:
             n_classifiers = 1
             plot_labels = ["Averaged Models"]
-            fig, axes = plt.subplots(1, 1, figsize=(7, 7), sharey=True)
+            fig, axes = plt.subplots(
+                1, 1, figsize=(7, 7), sharey=True, constrained_layout=True
+            )
             axes = [axes]
         else:
             n_classifiers = len(classifiers)
             plot_labels = classifiers
             fig, axes = plt.subplots(
-                1, n_classifiers, figsize=(6 * n_classifiers, 7), sharey=True
+                1,
+                n_classifiers,
+                figsize=(6 * n_classifiers + 1.5, 7),
+                sharey=True,
+                constrained_layout=True,
             )
             # Handle case where there's only one classifier
             if n_classifiers == 1:
@@ -355,7 +361,7 @@ class PlotCreator:
         # Add colorbar for accuracy values on the rightmost subplot
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=axes[-1], pad=0.15)
+        cbar = fig.colorbar(sm, ax=axes, pad=0.02)
         cbar.set_label("Accuracy")
 
         # Add legend for marker styles on the first subplot
@@ -389,13 +395,11 @@ class PlotCreator:
             y_labels = [str(k) for k, _ in items_sorted]
             ax_r.set_yticks(y_ticks)
             ax_r.set_yticklabels(y_labels)
-            ax_r.set_ylabel("Features left", labelpad=15)
+            ax_r.set_ylabel("Features left")
 
         # Use a figure-level title so it shows above all subplots
         fig.suptitle(self.string_beautify(dataset), fontsize=14)
 
-        # Leave room for the suptitle
-        plt.tight_layout(rect=(0, 0, 1, 0.96))
         plt.show()
 
     def plot_histogram(
@@ -731,6 +735,8 @@ class PlotCreator:
             return "Random Forest"
         elif s == "usa_house":
             return "USA House"
+        elif s == "usa_house_old":
+            return "USA House Hierarchy"
         elif s == "adult":
             return "Adult"
         elif s == "cervic_cancer":
@@ -1345,7 +1351,7 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
-    pl.plot_utility("usa_house", ["MLP", "forest", "knn"], False)
+    pl.plot_utility("adult", ["MLP", "forest", "knn"], False)
     # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
