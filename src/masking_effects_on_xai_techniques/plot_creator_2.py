@@ -183,7 +183,7 @@ class PlotCreator:
             classifiers = ["knn", "forest", "MLP"]
 
         def _filter(x: list[Explanation], clean: Explanation):
-            transform_levels = [0] + [e.get_transform_level() for e in x]
+            transform_levels = [0] + [e.get_transform_level() * 100 for e in x]
             accuracies = [clean.accuracy] + [e.accuracy for e in x]
             return {"accuracies": accuracies, "generalization levels": transform_levels}
 
@@ -310,7 +310,7 @@ class PlotCreator:
             ax.set_xticks(all_indices[: len(tick_labels)])
             ax.set_xticklabels(tick_labels[: len(all_indices)])
 
-            ax.set_xlabel("Generalization Level")
+            ax.set_xlabel("Anonymization Level")
             if not average_models:
                 ax.set_title(f"{self.string_beautify(label)}")
             ax.invert_yaxis()
