@@ -133,6 +133,13 @@ class PlotCreator:
         ("a", "alpha_k_anonymity"),
     ]
 
+    ANONYMIZATION_COLORS = {
+        "t_closeness": "tab:orange",
+        "l_diversity": "tab:brown",
+        "k_anonymity": "tab:purple",
+        "alpha_k_anonymity": "tab:red",
+    }
+
     EXPLANATION_METHODS = ["shap", "lime"]
 
     def __init__(
@@ -457,9 +464,10 @@ class PlotCreator:
         total_bars = n_methods * 2  # LIME + SHAP
         offset = width * (total_bars - 1) / 2
 
-        # Define colors for anonymization methods
-        cmap = plt.get_cmap("tab10")
-        colors = [cmap(i) for i in range(n_methods)]
+        # Define colors for anonymization methods using class constant
+        colors = {
+            method: PlotCreator.ANONYMIZATION_COLORS[method] for method in anon_methods
+        }
 
         # Plot bars in pairs (LIME and SHAP together for each anonymization method)
         for i, anon_method in enumerate(anon_methods):
@@ -473,7 +481,7 @@ class PlotCreator:
                 lime_values,
                 width,
                 label=anon_method if i == 0 else "",
-                color=colors[i],
+                color=colors[anon_method],
                 alpha=0.8,
             )
 
@@ -489,7 +497,7 @@ class PlotCreator:
                 label="" if i < len(anon_methods) - 1 else "",
                 color="none",
                 alpha=1.0,
-                edgecolor=colors[i],
+                edgecolor=colors[anon_method],
                 # linewidth=2.5,
                 hatch="///",
             )
@@ -498,8 +506,8 @@ class PlotCreator:
 
         # Color legend (anonymization methods)
         color_handles = [
-            Patch(facecolor=colors[i], label=self.string_beautify(method))
-            for i, method in enumerate(anon_methods)
+            Patch(facecolor=colors[method], label=self.string_beautify(method))
+            for method in anon_methods
         ]
 
         # Shading legend (explanation methods)
@@ -784,7 +792,15 @@ class PlotCreator:
             ax2.invert_yaxis()
             ax2.set_ylim(ax.get_ylim())
 
-            ax.set_title(f"{self.string_beautify(model)}")
+            ax.set_title(
+                f"{self.string_beautify(model)}",
+                bbox=dict(
+                    boxstyle="round,pad=0.5",
+                    facecolor=PlotCreator.ANONYMIZATION_COLORS[model],
+                    alpha=0.3,
+                    edgecolor=PlotCreator.ANONYMIZATION_COLORS[model],
+                ),
+            )
 
         # Create a single legend for the entire figure
         handles, labels = [], []
@@ -1287,9 +1303,11 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "cervic_cancer", "adult"],
         "./data/",
     )
+    # pl.plot_utility("usa_house", ["MLP", "forest", "knn"])
+    pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
-    pl.plot_consistency("usa_house")
+    # pl.plot_consistency("usa_house")
     # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
