@@ -408,6 +408,7 @@ class PlotCreator:
         anon_models: list[str] | None = None,
         threshold: float = 0.05,
         start_from: int | None = None,
+        x_labels: tuple[int, int] | None = None,
     ) -> None:
         def _filter(x: list[Explanation], clean: Explanation):
             if start_from is None:
@@ -580,6 +581,10 @@ class PlotCreator:
         ax.set_xticklabels([self.string_beautify(c) for c in classifiers])
         ax.grid(axis="y", alpha=0.3)
 
+        # Set y-axis limits if x_labels provided
+        if x_labels is not None:
+            ax.set_ylim(x_labels[0], x_labels[1] + 0.2)
+
         plt.tight_layout()
         plt.show()
 
@@ -734,9 +739,9 @@ class PlotCreator:
         elif s == "forest":
             return "Random Forest"
         elif s == "usa_house":
-            return "USA House"
+            return "USA House Equal-Size"
         elif s == "usa_house_old":
-            return "USA House Hierarchy"
+            return "USA House Equal-Width"
         elif s == "adult":
             return "Adult"
         elif s == "cervic_cancer":
@@ -1348,11 +1353,11 @@ class PlotCreator:
 if __name__ == "__main__":
     pl = PlotCreator(
         ["MLP", "forest", "knn"],
-        ["old_adult", "usa_house", "cervic_cancer", "adult"],
+        ["old_adult", "usa_house", "usa_house_old", "cervic_cancer", "adult"],
         "./data/",
     )
-    pl.plot_utility("adult", ["MLP", "forest", "knn"], False)
-    # pl.plot_histogram("usa_house", threshold=0.05)
+    # pl.plot_utility("adult", ["MLP", "forest", "knn"], False)
+    pl.plot_histogram("usa_house_old", threshold=0.05, x_labels=(0, 6))
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
     # pl.plot_consistency("usa_house")
