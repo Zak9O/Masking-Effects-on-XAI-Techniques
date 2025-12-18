@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+from itertools import groupby, zip_longest
 import numpy as np
 from functools import reduce
 from scipy import stats
@@ -114,13 +116,13 @@ class _PlotResult:
         self,
         value: dict[str, Any],
         classifier: str,
-        anonymizatino_method: str,
+        anonymization_method: str,
         explanation_method: str,
         dataset: str,
     ) -> None:
         self.value = value
         self.classifier = classifier
-        self.anonymizatino_method = anonymizatino_method
+        self.anonymization_method = anonymization_method
         self.explanation_method = explanation_method
         self.dataset = dataset
 
@@ -173,7 +175,7 @@ class PlotCreator:
                             _PlotResult(
                                 value=f(expl_list, explanations["clean"][0]),
                                 classifier=classifier,
-                                anonymizatino_method=anon_model_name,
+                                anonymization_method=anon_model_name,
                                 explanation_method=method,
                                 dataset=dataset,
                             )
@@ -212,34 +214,41 @@ class PlotCreator:
         )
         if average_models:
 
-            def f(x: list[_PlotResult], y: _PlotResult) -> list[_PlotResult]:
-                existing_item = next(
-                    (
-                        item
-                        for item in x
-                        if item.anonymizatino_method == y.anonymizatino_method
-                    ),
-                    None,
-                )
-                if existing_item is None:
-                    return [y] + x
+            def aggregate_by_iterator(
+                results: list[_PlotResult],
+            ) -> Iterable[_PlotResult]:
+                sorted_results = sorted(results, key=lambda x: x.anonymization_method)
 
-                existing_item.value["accuracies"] = [
-                    (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
-                    for e, r in zip(
-                        existing_item.value["accuracies"], y.value["accuracies"]
+                for method, group in groupby(
+                    sorted_results, key=lambda x: x.anonymization_method
+                ):
+                    items = list(group)
+                    accuracies = [item.value["accuracies"] for item in items]
+                    features_left = [item.value["features left"] for item in items]
+
+                    avg_val = np.nanmean(np.array(accuracies), axis=0).tolist()
+                    features_left = [
+                        max(items)
+                        for items in zip_longest(
+                            *features_left, fillvalue=-float("inf")
+                        )
+                    ]
+
+                    yield _PlotResult(
+                        value={
+                            "accuracies": avg_val,
+                            "features left": features_left,
+                            "generalization levels": items[0].value[
+                                "generalization levels"
+                            ],
+                        },
+                        classifier=items[0].classifier,
+                        anonymization_method=method,
+                        explanation_method=items[0].explanation_method,
+                        dataset=items[0].dataset,
                     )
-                ]
-                existing_item.value["features left"] = [
-                    np.max([e, r])
-                    for e, r in zip(
-                        existing_item.value["features left"], y.value["features left"]
-                    )
-                ]
 
-                return x
-
-            result = list(reduce(f, result, []))
+            result = list(aggregate_by_iterator(result))
 
         def f(x: dict[int, float], y: _PlotResult) -> dict[int, float]:
             gen_levels = y.value.get("generalization levels", [])
@@ -314,7 +323,7 @@ class PlotCreator:
                 indices = list(range(len(gen_levels)))
 
                 # Get marker style for this anonymization method
-                marker = marker_styles.get(plot_result.anonymizatino_method, "o")
+                marker = marker_styles.get(plot_result.anonymization_method, "o")
 
                 # Plot lines connecting the points
                 ax.plot(indices, gen_levels, "k-", alpha=0.3, linewidth=1)
@@ -332,7 +341,7 @@ class PlotCreator:
                         marker=marker,
                         s=100,
                         color=color,
-                        label=f"{plot_result.anonymizatino_method}" if i == 0 else "",
+                        label=f"{plot_result.anonymization_method}" if i == 0 else "",
                     )
 
             # Set x-tick labels with 'clean' as the first label
@@ -440,7 +449,7 @@ class PlotCreator:
                     lambda x: x.explanation_method == "lime"
                     and x.dataset == dataset
                     and (
-                        x.anonymizatino_method in anon_models if anon_models else True
+                        x.anonymization_method in anon_models if anon_models else True
                     ),
                     result,
                 ),
@@ -453,7 +462,7 @@ class PlotCreator:
                     lambda x: x.explanation_method == "shap"
                     and x.dataset == dataset
                     and (
-                        x.anonymizatino_method in anon_models if anon_models else True
+                        x.anonymization_method in anon_models if anon_models else True
                     ),
                     result,
                 ),
@@ -462,7 +471,7 @@ class PlotCreator:
 
         # Get unique classifiers and anonymization methods
         classifiers = sorted(set([r.classifier for r in lime]))
-        anon_methods = sorted(set([r.anonymizatino_method for r in lime]))
+        anon_methods = sorted(set([r.anonymization_method for r in lime]))
 
         # Create data structure for plotting
         # Structure: {anon_method: {classifier: std_value}}
@@ -479,7 +488,7 @@ class PlotCreator:
                         r
                         for r in lime
                         if r.classifier == classifier
-                        and r.anonymizatino_method == anon_method
+                        and r.anonymization_method == anon_method
                     ),
                     None,
                 )
@@ -488,7 +497,7 @@ class PlotCreator:
                         r
                         for r in shap
                         if r.classifier == classifier
-                        and r.anonymizatino_method == anon_method
+                        and r.anonymization_method == anon_method
                     ),
                     None,
                 )
@@ -899,7 +908,7 @@ class PlotCreator:
                 (
                     item
                     for item in x
-                    if item.anonymizatino_method == y.anonymizatino_method
+                    if item.anonymization_method == y.anonymization_method
                 ),
                 None,
             )
@@ -907,7 +916,7 @@ class PlotCreator:
                 return [y] + x
 
             existing_item.value["value"] = [
-                (np.nan_to_num(e, r) + np.nan_to_num(r, e)) / 2
+                (np.nan_to_num(e, r) + np.nan_to_num(e, r)) / 2
                 for e, r in zip(existing_item.value["value"], y.value["value"])
             ]
             return x
@@ -935,9 +944,9 @@ class PlotCreator:
         # Add plotting code below
         data = {"shap": {}, "lime": {}}
         for item in lime:
-            data["lime"][item.anonymizatino_method] = item.value
+            data["lime"][item.anonymization_method] = item.value
         for item in shap:
-            data["shap"][item.anonymizatino_method] = item.value
+            data["shap"][item.anonymization_method] = item.value
 
         above = {}
         for method in data["lime"].keys():
@@ -1039,47 +1048,78 @@ class PlotCreator:
         dataset: str,
         methods: list[str] | None = None,
         legend_placement: str = "upper right",
+        show_tau: bool = False,
     ) -> None:
-        data = {"shap": {}, "lime": {}}
-        for classifier in ["MLP", "forest", "knn"]:
-            for method in data.keys():
-                explanations = (
-                    self.models[classifier].datasets[dataset].explanations[method]
+        def _filter(x: list[Explanation], clean: Explanation):
+            ran = [e.compute_kendal_tau(clean.get_ranking()) for e in x]
+            return {
+                "value": [e.pvalue for e in ran],
+                "tau": [e.statistic for e in ran],
+                "generalization_levels": [
+                    round(100 * e.transform_n / e.transform_n_max) for e in x
+                ],
+            }
+
+        result = self._filter_data(_filter)
+
+        def aggregate_by_iterator(results: list[_PlotResult]) -> Iterable[_PlotResult]:
+            sorted_results = sorted(results, key=lambda x: x.anonymization_method)
+
+            for method, group in groupby(
+                sorted_results, key=lambda x: x.anonymization_method
+            ):
+                items = list(group)
+                values = [item.value["value"] for item in items]
+                taus = [item.value["tau"] for item in items]
+
+                avg_val = np.nanmean(np.array(values), axis=0).tolist()
+                avg_tau = np.nanmean(np.array(taus), axis=0).tolist()
+
+                yield _PlotResult(
+                    value={"value": avg_val, "tau": avg_tau},
+                    classifier=items[0].classifier,
+                    anonymization_method=method,
+                    explanation_method=items[0].explanation_method,
+                    dataset=items[0].dataset,
                 )
-                for anon_model_name, expl_list in explanations.items():
-                    if anon_model_name == "clean" or (
-                        methods and anon_model_name not in methods
-                    ):
-                        continue
 
-                    ran = [
-                        e.compute_kendal_tau(
-                            explanations["clean"][0].get_ranking()
-                        ).pvalue
-                        for e in expl_list
-                    ]
-                    if len(ran) == 0:
-                        continue
-                    # tmp = explanations['clean'] + expl_list
-                    # for e1, e2 in zip(tmp[:-1], tmp[1:]):
-                    #     kt = e2.compute_kendal_tau(e1.get_ranking())
-                    #     ran.append(kt.pvalue)
+        lime = list(
+            filter(
+                lambda x: x.explanation_method == "lime" and x.dataset == dataset,
+                result,
+            ),
+        )
+        shap = list(
+            filter(
+                lambda x: x.explanation_method == "shap" and x.dataset == dataset,
+                result,
+            ),
+        )
+        lime = list(aggregate_by_iterator(lime))
+        shap = list(aggregate_by_iterator(shap))
 
-                    existing = data[method].get(anon_model_name, [])
-                    if existing:
-                        data[method][anon_model_name] = [
-                            (np.nan_to_num(e, r) + np.nan_to_num(e, r)) / 2
-                            for e, r in zip(existing, ran)
-                        ]
-                    else:
-                        data[method][anon_model_name] = ran
+        data = {"shap": {}, "lime": {}}
+        # Populate data dict from aggregated lime/shap results
+        # Map anonymization method -> list of p-values ("value") or tau values
+        data_key = "tau" if show_tau else "value"
+        for item in lime:
+            data["lime"][item.anonymization_method] = item.value.get(data_key, [])
+        for item in shap:
+            data["shap"][item.anonymization_method] = item.value.get(data_key, [])
 
         above = {}
-        for method in data["lime"].keys():
-            above[method] = sum(
-                1 for s, la in zip(data["shap"][method], data["lime"][method]) if la > s
-            )
-            above[method] /= len(data["lime"][method])
+        # Only compute for methods present in both lime and shap
+        common_methods = set(data["lime"].keys()).intersection(set(data["shap"].keys()))
+        for method in common_methods:
+            pairs = list(zip(data["shap"][method], data["lime"][method]))
+            if not pairs:
+                continue
+            if show_tau:
+                # When showing tau, count when LIME < SHAP
+                above[method] = sum(1 for s, la in pairs if la < s) / len(pairs)
+            else:
+                # When showing p-value, count when LIME > SHAP
+                above[method] = sum(1 for s, la in pairs if la > s) / len(pairs)
         avg_above = sum(above.values()) / len(above)
 
         # Plotting
@@ -1110,10 +1150,16 @@ class PlotCreator:
 
         plt.xlabel("Anonymization Level")
         plt.xticks(range(1, max_len + 1))
-        plt.ylabel("Kendall Tau p-value")
-        plt.title(
-            f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP"
-        )
+        if show_tau:
+            plt.ylabel("Kendall Tau Statistic")
+            plt.title(
+                f"{self.string_beautify(dataset)} Kendall Tau Statistic Comparison: LIME vs SHAP"
+            )
+        else:
+            plt.ylabel("Kendall Tau p-value")
+            plt.title(
+                f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP"
+            )
 
         # Legends: colors for anonymization models, linestyles for methods
         ax = plt.gca()
@@ -1147,7 +1193,9 @@ class PlotCreator:
         combined_handles = color_handles + linestyle_handles
         ax.legend(
             handles=combined_handles,
-            title="Anonymization (# LIME > SHAP %)",
+            title="Anonymization (# LIME > SHAP %)"
+            if not show_tau
+            else "Anonymization (# LIME < SHAP %)",
             loc="best",
         )
         plt.grid(True, linestyle="--", alpha=0.5)
@@ -1185,7 +1233,7 @@ class PlotCreator:
                 lambda x: any(
                     x.classifier == f["classifier"]
                     and x.explanation_method == f["method"]
-                    and x.anonymizatino_method == f["anon_model"]
+                    and x.anonymization_method == f["anon_model"]
                     and x.dataset == dataset
                     for f in filters_list
                 ),
@@ -1316,7 +1364,7 @@ class PlotCreator:
                 ax2.set_ylim(ax.get_ylim())
 
                 ax.set_title(
-                    f"{self.string_beautify(plot_result.classifier)}-{self.string_beautify(plot_result.explanation_method).upper()}-{self.string_beautify(plot_result.anonymizatino_method)}"
+                    f"{self.string_beautify(plot_result.classifier)}-{self.string_beautify(plot_result.explanation_method).upper()}-{self.string_beautify(plot_result.anonymization_method)}"
                 )
 
                 plot_idx += 1
@@ -1358,11 +1406,11 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "usa_house_old", "cervic_cancer", "adult"],
         "./data/",
     )
-    # pl.plot_utility("adult", ["MLP", "forest", "knn"], False)
-    pl.plot_histogram("usa_house_old", threshold=0.05, x_labels=(0, 6))
+    pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
+    # pl.plot_histogram("usa_house_old", threshold=0.05, x_labels=(0, 6))
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
-    # pl.plot_consistency("usa_house")
+    # pl.plot_consistency("usa_house", show_tau=True)
     # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
