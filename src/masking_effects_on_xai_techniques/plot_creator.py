@@ -421,7 +421,7 @@ class PlotCreator:
     ) -> None:
         def _filter(x: list[Explanation], clean: Explanation):
             if start_from is None:
-                ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
+                ran = [e.compute_kendal_tau(clean.get_ranking()) for e in x]
             else:
                 try:
                     clean = x[start_from]
@@ -431,8 +431,11 @@ class PlotCreator:
                 if len(clean.get_ranking()) < 2:
                     ran = []
                 else:
-                    ran = [e.compute_kendal_tau(clean.get_ranking()).pvalue for e in x]
-            return {"value": ran}
+                    ran = [e.compute_kendal_tau(clean.get_ranking()) for e in x]
+            return {
+                "p-value": [kt.pvalue for kt in ran],
+                "value": [kt.statistic for kt in ran],
+            }
 
         result = self._filter_data(_filter)
 
@@ -584,7 +587,7 @@ class PlotCreator:
         ax.legend(handles=all_handles, loc="upper center", ncol=len(anon_methods) + 2)
 
         ax.set_xlabel("Classifier")
-        ax.set_ylabel(f"# of times |$\\Delta$p-value|> {threshold}")
+        ax.set_ylabel(f"# of times |$\\Delta \\tau$|> {threshold}")
         ax.set_title(f"Stability LIME vs SHAP for {self.string_beautify(dataset)}")
         ax.set_xticks(x)
         ax.set_xticklabels([self.string_beautify(c) for c in classifiers])
@@ -1048,7 +1051,7 @@ class PlotCreator:
         dataset: str,
         methods: list[str] | None = None,
         legend_placement: str = "upper right",
-        show_tau: bool = False,
+        show_tau: bool = True,
     ) -> None:
         def _filter(x: list[Explanation], clean: Explanation):
             ran = [e.compute_kendal_tau(clean.get_ranking()) for e in x]
@@ -1099,13 +1102,27 @@ class PlotCreator:
         shap = list(aggregate_by_iterator(shap))
 
         data = {"shap": {}, "lime": {}}
+        pval_data = {"shap": {}, "lime": {}}
         # Populate data dict from aggregated lime/shap results
         # Map anonymization method -> list of p-values ("value") or tau values
         data_key = "tau" if show_tau else "value"
         for item in lime:
             data["lime"][item.anonymization_method] = item.value.get(data_key, [])
+            pval_data["lime"][item.anonymization_method] = item.value.get("value", [])
         for item in shap:
             data["shap"][item.anonymization_method] = item.value.get(data_key, [])
+            pval_data["shap"][item.anonymization_method] = item.value.get("value", [])
+
+        # If specific anonymization methods are provided, filter to only those
+        if methods:
+            allowed = set(methods)
+            for expl_method in ["lime", "shap"]:
+                data[expl_method] = {
+                    k: v for k, v in data[expl_method].items() if k in allowed
+                }
+                pval_data[expl_method] = {
+                    k: v for k, v in pval_data[expl_method].items() if k in allowed
+                }
 
         above = {}
         # Only compute for methods present in both lime and shap
@@ -1139,14 +1156,44 @@ class PlotCreator:
             for anon_model_name, values in method_data.items():
                 x_vals = np.arange(1, len(values) + 1, dtype=float)
                 max_len = max(max_len, len(x_vals))
+                color = colors.get(anon_model_name, None)
                 plt.plot(
                     x_vals,
                     values,
-                    color=colors.get(anon_model_name, None),
+                    color=color,
                     linestyle=linestyles.get(method, "-"),
                     linewidth=2.0,
                     alpha=0.85,
                 )
+
+                # When plotting tau, overlay markers to indicate p-value significance
+                if show_tau:
+                    pvals = pval_data.get(method, {}).get(anon_model_name, [])
+                    sig_x = [x for x, p in zip(x_vals, pvals) if p < 0.05]
+                    sig_y = [y for y, p in zip(values, pvals) if p < 0.05]
+                    nonsig_x = [x for x, p in zip(x_vals, pvals) if p >= 0.05]
+                    nonsig_y = [y for y, p in zip(values, pvals) if p >= 0.05]
+
+                    # Filled markers for significant points
+                    plt.scatter(
+                        sig_x,
+                        sig_y,
+                        color=color,
+                        edgecolors=color,
+                        s=50,
+                        zorder=5,
+                    )
+
+                    # Hollow markers for non-significant points
+                    if nonsig_x:
+                        plt.scatter(
+                            nonsig_x,
+                            nonsig_y,
+                            facecolors="none",
+                            edgecolors=color,
+                            s=50,
+                            zorder=5,
+                        )
 
         plt.xlabel("Anonymization Level")
         plt.xticks(range(1, max_len + 1))
@@ -1196,7 +1243,7 @@ class PlotCreator:
             title="Anonymization (# LIME > SHAP %)"
             if not show_tau
             else "Anonymization (# LIME < SHAP %)",
-            loc="best",
+            loc=legend_placement,
         )
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
@@ -1406,11 +1453,16 @@ if __name__ == "__main__":
         ["old_adult", "usa_house", "usa_house_old", "cervic_cancer", "adult"],
         "./data/",
     )
-    pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
-    # pl.plot_histogram("usa_house_old", threshold=0.05, x_labels=(0, 6))
+    # pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
+    # pl.plot_histogram("usa_house_old", threshold=0.05)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
-    # pl.plot_consistency("usa_house", show_tau=True)
+    pl.plot_consistency(
+        "usa_house",
+        show_tau=True,
+        methods=["t_closeness"],
+        legend_placement="upper right",
+    )
     # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
