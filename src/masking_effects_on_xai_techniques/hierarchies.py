@@ -7,7 +7,7 @@ def save_hierarchy(hierarchy: dict[int, pd.Series], path: str):  # pyright: igno
 
 
 def generate_qcut_hierarchy(
-    values: pd.Series, levels: int, search_for_n=False
+    values: pd.Series, levels: int, search_for_n=False, prepend_level=False
 ) -> dict[int, pd.Series]:
     unique = values.copy().drop_duplicates().sort_values()
 
@@ -23,7 +23,12 @@ def generate_qcut_hierarchy(
         current_level_hierarchy = []
 
         for j in unique.index:
-            current_level_hierarchy.append(bins[j])
+            if prepend_level:
+                level_val = str(i + 1) + str(bins[j])
+            else:
+                level_val = bins[j]
+
+            current_level_hierarchy.append(level_val)
 
         hierarchy[i + 1] = pd.Series(current_level_hierarchy, index=unique.index)
         pass
