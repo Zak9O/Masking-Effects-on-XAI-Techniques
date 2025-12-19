@@ -9,7 +9,7 @@ resolution-markers = [
 [[package]]
 name = "anjana"
 version = "1.1.0"
-source = { git = "https://github.com/Zak9O/anjana#c8a0cf2fc14c831f4dad473fb300d8ca582913be" }
+source = { git = "https://github.com/Zak9O/anjana#c18ed5527365f8d1d438f10341ea69156b64bb5c" }
 dependencies = [
     { name = "beartype" },
     { name = "docutils" },
