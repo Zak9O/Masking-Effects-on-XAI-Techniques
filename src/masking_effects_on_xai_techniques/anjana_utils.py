@@ -41,10 +41,15 @@ def _check_gen_level(
 
 
 def get_transformation(
-    data_anon: pd.DataFrame, quasi_ident: list[str], hierarchies
+    data_anon: pd.DataFrame,
+    quasi_ident: list[str],
+    hierarchies,
+    target_feat: str | None = None,
 ) -> tuple[int, int]:
     max_transformation_level = 0
     for feat in quasi_ident:
+        if target_feat is not None and feat == target_feat:
+            continue
         max_transformation_level += len(hierarchies[feat].keys()) - 1
 
     gen_level = _check_gen_level(data_anon, quasi_ident, hierarchies)

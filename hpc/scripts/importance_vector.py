@@ -377,6 +377,7 @@ if __name__ == "__main__":
         df,
         dataset.quasi_identifiers,
         create_hierachy(dataset.quasi_identifiers, dataset.hierarchy_path),
+        dataset.sensitive_attr,
     )
     ratio = transform_n / transform_n_max
     logging.info(
