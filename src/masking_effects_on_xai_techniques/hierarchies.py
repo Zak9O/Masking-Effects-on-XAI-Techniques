@@ -23,7 +23,7 @@ def generate_qcut_hierarchy(
         current_level_hierarchy = []
 
         for j in unique.index:
-            current_level_hierarchy.append(bins[j])
+            current_level_hierarchy.append(str(i + 1) + str(bins[j]))
 
         hierarchy[i + 1] = pd.Series(current_level_hierarchy, index=unique.index)
         pass
