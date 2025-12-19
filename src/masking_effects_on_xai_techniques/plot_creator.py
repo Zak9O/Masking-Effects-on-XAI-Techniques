@@ -192,6 +192,7 @@ class PlotCreator:
         classifiers: Optional[list[str]] = None,
         average_models=False,
         only_look_at_k=False,
+        color_num_feature_left=False,
     ) -> None:
         if classifiers is None:
             classifiers = ["knn", "forest", "MLP"]
@@ -299,16 +300,23 @@ class PlotCreator:
             "alpha_k_anonymity": "D",
         }
 
-        # Color map for accuracy values
+        # Color map for accuracy values or features left
         cmap = plt.get_cmap("viridis")
 
-        # Get global min/max accuracy for consistent color mapping across all series
+        # Get global min/max accuracy or features left for consistent color mapping across all series
         from matplotlib.colors import Normalize
         from matplotlib.ticker import MaxNLocator
 
-        global_min_acc = min([min(p.value["accuracies"]) for p in result])
-        global_max_acc = max([max(p.value["accuracies"]) for p in result])
-        norm = Normalize(vmin=global_min_acc, vmax=global_max_acc)
+        if color_num_feature_left:
+            all_features_left = [f for p in result for f in p.value["features left"]]
+            global_min_val = min(all_features_left)
+            global_max_val = max(all_features_left)
+            colorbar_label = "Features Left"
+        else:
+            global_min_val = min([min(p.value["accuracies"]) for p in result])
+            global_max_val = max([max(p.value["accuracies"]) for p in result])
+            colorbar_label = "Accuracy"
+        norm = Normalize(vmin=global_min_val, vmax=global_max_val)
 
         # Plot for each classifier
         for ax, label in zip(axes, plot_labels):
@@ -325,6 +333,7 @@ class PlotCreator:
             for plot_result in classifier_result:
                 gen_levels = plot_result.value["generalization levels"]
                 accuracies = plot_result.value["accuracies"]
+                features_left = plot_result.value["features left"]
 
                 # Create indices for x-axis
                 indices = list(range(len(gen_levels)))
@@ -335,13 +344,16 @@ class PlotCreator:
                 # Plot lines connecting the points
                 ax.plot(indices, gen_levels, "k-", alpha=0.3, linewidth=1)
 
-                # Plot points with colors based on accuracy
-                for i, (idx, gen_level, acc) in enumerate(
-                    zip(indices, gen_levels, accuracies)
+                # Plot points with colors based on accuracy or features left
+                for i, (idx, gen_level, acc, feat) in enumerate(
+                    zip(indices, gen_levels, accuracies, features_left)
                 ):
-                    # Get normalized accuracy for this specific point
-                    normalized_acc = norm(acc)
-                    color = cmap(normalized_acc)
+                    # Get normalized value for this specific point
+                    if color_num_feature_left:
+                        normalized_val = norm(feat)
+                    else:
+                        normalized_val = norm(acc)
+                    color = cmap(normalized_val)
                     ax.scatter(
                         idx,
                         gen_level,
@@ -374,11 +386,11 @@ class PlotCreator:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
             ax.grid(True, alpha=0.3)
 
-        # Add colorbar for accuracy values on the rightmost subplot
+        # Add colorbar for accuracy or features left values on the rightmost subplot
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         cbar = fig.colorbar(sm, ax=axes, pad=0.02)
-        cbar.set_label("Accuracy")
+        cbar.set_label(colorbar_label)
 
         # Add legend for marker styles on the first subplot
         from matplotlib.lines import Line2D
@@ -402,7 +414,8 @@ class PlotCreator:
         axes[0].set_ylabel("Generalization Level (%)")
 
         # Add twin y-axis with feature labels only on the rightmost plot
-        if min_feature_left_y and len(axes) > 0:
+        # Skip if color_num_feature_left is True
+        if min_feature_left_y and len(axes) > 0 and not color_num_feature_left:
             ax_r = axes[-1].twinx()
             ax_r.set_ylim(axes[-1].get_ylim())
             # ax_r.invert_yaxis()
@@ -1473,7 +1486,7 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
-    pl.plot_utility("cervic_cancer")
+    pl.plot_utility("cervic_cancer", average_models=True, only_look_at_k=True)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
     # pl.plot_consistency(
