@@ -7,6 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 from typing import Any, Callable, Optional
 
@@ -59,6 +60,9 @@ class Dataset:
 
         for _, anon_model_dir_name in PlotCreator.ANONYMIZATION_MODELS:
             anon_model_dir = os.path.join(path, anon_model_dir_name)
+            # if not os.path.exists(anon_model_dir):
+            #     method_dict[anon_model_dir_name] = []
+            #     continue
 
             explanations = []
             files_sorted = self._sort_files(anon_model_dir_name, anon_model_dir)
@@ -187,6 +191,7 @@ class PlotCreator:
         dataset: str,
         classifiers: Optional[list[str]] = None,
         average_models=False,
+        only_look_at_k=False,
     ) -> None:
         if classifiers is None:
             classifiers = ["knn", "forest", "MLP"]
@@ -251,6 +256,8 @@ class PlotCreator:
             result = list(aggregate_by_iterator(result))
 
         def f(x: dict[int, float], y: _PlotResult) -> dict[int, float]:
+            if y.anonymization_method != "k_anonymity" and only_look_at_k:
+                return x
             gen_levels = y.value.get("generalization levels", [])
             feat_left = y.value.get("features left", [])
             for gen_level, feat_count in zip(gen_levels, feat_left):
@@ -593,6 +600,9 @@ class PlotCreator:
         ax.set_xticklabels([self.string_beautify(c) for c in classifiers])
         ax.grid(axis="y", alpha=0.3)
 
+        # Set y-axis to only show whole numbers
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
         # Set y-axis limits if x_labels provided
         if x_labels is not None:
             ax.set_ylim(x_labels[0], x_labels[1] + 0.2)
@@ -760,6 +770,8 @@ class PlotCreator:
             return "Adult Imbalanced"
         elif s == "cervic_cancer":
             return "Cervical Cancer"
+        elif s == "cervic_cancer_original":
+            return "Cervical Cancer Reversed"
         return s
 
     def plot_line(
@@ -1450,19 +1462,25 @@ class PlotCreator:
 if __name__ == "__main__":
     pl = PlotCreator(
         ["MLP", "forest", "knn"],
-        ["old_adult", "usa_house", "usa_house_old", "cervic_cancer", "adult"],
+        [
+            # "old_adult",
+            "usa_house",
+            "usa_house_old",
+            "cervic_cancer",
+            "adult",
+            "cervic_cancer_reversed",
+        ],
         "./data/",
     )
     # pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
-    # pl.plot_histogram("usa_house_old", threshold=0.05)
+    pl.plot_utility("cervic_cancer")
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
-    pl.plot_consistency(
-        "usa_house",
-        show_tau=True,
-        methods=["t_closeness"],
-        legend_placement="upper right",
-    )
+    # pl.plot_consistency(
+    #     "usa_house",
+    #     show_tau=True,
+    #     legend_placement="upper right",
+    # )
     # pl.plot_histogram("usa_house", threshold=0.05)
     # pl.plot_line_compare(
     #     "usa_house",
