@@ -193,6 +193,7 @@ class PlotCreator:
         average_models=False,
         only_look_at_k=False,
         color_num_feature_left=False,
+        show_feature_counts=False,
     ) -> None:
         if classifiers is None:
             classifiers = ["knn", "forest", "MLP"]
@@ -358,10 +359,22 @@ class PlotCreator:
                         idx,
                         gen_level,
                         marker=marker,
-                        s=100,
+                        s=100 if show_feature_counts else 150,
                         color=color,
                         label=f"{plot_result.anonymization_method}" if i == 0 else "",
                     )
+                    if show_feature_counts:
+                        ax.text(
+                            idx,
+                            gen_level,
+                            str(feat),
+                            ha="center",
+                            va="center",
+                            fontsize=8,
+                            color="red",
+                            weight="bold",
+                            zorder=5,
+                        )
 
             # Set x-tick labels with 'clean' as the first label
             all_indices = list(
@@ -415,7 +428,12 @@ class PlotCreator:
 
         # Add twin y-axis with feature labels only on the rightmost plot
         # Skip if color_num_feature_left is True
-        if min_feature_left_y and len(axes) > 0 and not color_num_feature_left:
+        if (
+            min_feature_left_y
+            and len(axes) > 0
+            and not color_num_feature_left
+            and not show_feature_counts
+        ):
             ax_r = axes[-1].twinx()
             ax_r.set_ylim(axes[-1].get_ylim())
             # ax_r.invert_yaxis()
@@ -1486,7 +1504,7 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
-    pl.plot_utility("cervic_cancer", average_models=True, only_look_at_k=True)
+    pl.plot_utility("cervic_cancer", average_models=True, show_feature_counts=True)
     # pl.plot_line("forest", "adult", "shap")
     # pl.plot_line("MLP", "usa_house", "shap")
     # pl.plot_consistency(
