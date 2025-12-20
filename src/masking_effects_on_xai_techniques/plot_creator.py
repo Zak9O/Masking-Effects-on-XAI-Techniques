@@ -297,7 +297,7 @@ class PlotCreator:
         marker_styles = {
             "k_anonymity": "o",
             "l_diversity": "s",
-            "t_closeness": "^",
+            "t_closeness": "h",
             "alpha_k_anonymity": "D",
         }
 
@@ -359,7 +359,8 @@ class PlotCreator:
                         idx,
                         gen_level,
                         marker=marker,
-                        s=100 if show_feature_counts else 150,
+                        # s=1000,
+                        s=200 if show_feature_counts else 100,
                         color=color,
                         label=f"{plot_result.anonymization_method}" if i == 0 else "",
                     )
@@ -801,7 +802,7 @@ class PlotCreator:
             return "Adult Imbalanced"
         elif s == "cervic_cancer":
             return "Cervical Cancer"
-        elif s == "cervic_cancer_original":
+        elif s == "cervic_cancer_reversed":
             return "Cervical Cancer Reversed"
         return s
 
