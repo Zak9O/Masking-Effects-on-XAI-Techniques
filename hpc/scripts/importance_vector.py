@@ -362,8 +362,13 @@ if __name__ == "__main__":
         qi = list(df.columns)
         sensitive_attr = "disease"
         qi.remove(sensitive_attr)
-        num_i = [0, 5, 6, 8]
-        numeric_features = [df.columns[i] for i in num_i]
+        numeric_features = [
+            "Age",
+            "Smokes _years_",
+            "Smokes _packs-year_",
+            "Hormonal Contraceptives _years_",
+            "IUD _years_",
+        ]
         dataset = Dataset(
             args.dataset,
             numeric_features,
