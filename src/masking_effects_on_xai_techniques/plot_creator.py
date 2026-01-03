@@ -623,13 +623,21 @@ class PlotCreator:
 
         # Combine all handles in one legend with a separator
         all_handles = color_handles + shading_handles
-        ax.legend(handles=all_handles, loc="upper center", ncol=len(anon_methods) + 2)
+        ax.legend(
+            handles=all_handles,
+            loc="upper center",
+            ncol=len(anon_methods) + 2,
+            fontsize=15,
+        )
 
-        ax.set_xlabel("Classifier")
-        ax.set_ylabel(f"# of times |$\\Delta \\tau$|> {threshold}")
-        ax.set_title(f"Stability LIME vs SHAP for {self.string_beautify(dataset)}")
+        ax.set_xlabel("Classifier", fontsize=18)
+        ax.set_ylabel(f"# of times |$\\Delta \\tau$|> {threshold}", fontsize=18)
+        ax.set_title(
+            f"Stability LIME vs SHAP for {self.string_beautify(dataset)}", fontsize=22
+        )
         ax.set_xticks(x)
-        ax.set_xticklabels([self.string_beautify(c) for c in classifiers])
+        ax.set_xticklabels([self.string_beautify(c) for c in classifiers], fontsize=17)
+        ax.tick_params(axis="y", labelsize=17)
         ax.grid(axis="y", alpha=0.3)
 
         # Set y-axis to only show whole numbers
@@ -814,16 +822,16 @@ class PlotCreator:
         axes = axes.flatten()  # Flatten the 2x2 array for easy iteration
         explanationss = self.models[classifier].datasets[dataset].explanations[method]
 
-        fig.suptitle(
-            f"Rank Topology of {self.string_beautify(classifier)} {self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
-            fontsize=16,
-        )
+        # Global x-label; suptitle handled after we know how many subplots are shown
         fig.supxlabel("Dataset")
 
-        for i, (_, model) in enumerate(PlotCreator.ANONYMIZATION_MODELS):
+        axes_used: list[plt.Axes] = []
+
+        for _, model in PlotCreator.ANONYMIZATION_MODELS:
             if only is not None and model not in only:
                 continue
-            ax = axes[i]  # Get the current subplot axis
+            ax = axes[len(axes_used)]  # Get the next available subplot axis
+            axes_used.append(ax)
             explanations = explanationss["clean"] + explanationss[model]
 
             model_names = [e.name for e in explanations]
@@ -905,31 +913,46 @@ class PlotCreator:
 
             ax.set_title(
                 f"{self.string_beautify(model)}",
-                bbox=dict(
-                    boxstyle="round,pad=0.5",
-                    facecolor=PlotCreator.ANONYMIZATION_COLORS[model],
-                    alpha=0.3,
-                    edgecolor=PlotCreator.ANONYMIZATION_COLORS[model],
-                ),
+                # bbox=dict(
+                #     boxstyle="round,pad=0.5",
+                #     facecolor=PlotCreator.ANONYMIZATION_COLORS[model],
+                #     alpha=0.3,
+                #     edgecolor=PlotCreator.ANONYMIZATION_COLORS[model],
+                # ),
             )
 
         # Create a single legend for the entire figure
         handles, labels = [], []
-        for ax in axes:
+        for ax in axes_used:
+            legend = ax.get_legend()
+            if legend is None:
+                continue
             for handle, label in zip(*ax.get_legend_handles_labels()):
                 if label not in labels:
                     handles.append(handle)
                     labels.append(label)
-            ax.get_legend().remove()  # Remove individual subplot legends
+            legend.remove()  # Remove individual subplot legends
 
-        # Place legend in the lower left subplot (axes[2]) at lower left
-        axes[3].legend(
+        # Hide unused axes if any were skipped
+        for ax in axes[len(axes_used) :]:
+            ax.set_visible(False)
+
+        # Place legend in the last used subplot to avoid referencing hidden axes
+        legend_ax = axes_used[-1] if axes_used else axes[-1]
+        legend_ax.legend(
             handles,
             labels,
             loc="lower right",
             title="Features",
             fontsize="small",
         )
+
+        # Add a suptitle only when multiple subplots are visible
+        if len(axes_used) != 1:
+            fig.suptitle(
+                f"Rank Topology of {self.string_beautify(classifier)} {self.string_beautify(dataset)} using {self.string_beautify(method).upper()}",
+                fontsize=16,
+            )
 
         fig.tight_layout(
             rect=[0, 0, 0.9, 0.96]  # pyright: ignore[reportArgumentType]
@@ -1239,21 +1262,24 @@ class PlotCreator:
                             zorder=5,
                         )
 
-        plt.xlabel("Anonymization Level")
-        plt.xticks(range(1, max_len + 1))
+        plt.xlabel("Anonymization Level", fontsize=18)
+        plt.xticks(range(1, max_len + 1), fontsize=14)
         if show_tau:
-            plt.ylabel("Kendall Tau Statistic")
+            plt.ylabel("Kendall Tau Statistic", fontsize=18)
             plt.title(
-                f"{self.string_beautify(dataset)} Kendall Tau Statistic Comparison: LIME vs SHAP"
+                f"{self.string_beautify(dataset)} Kendall Tau Statistic Comparison: LIME vs SHAP",
+                fontsize=16,
             )
         else:
-            plt.ylabel("Kendall Tau p-value")
+            plt.ylabel("Kendall Tau p-value", fontsize=18)
             plt.title(
-                f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP"
+                f"{self.string_beautify(dataset)} Kendall Tau p-value Comparison: LIME vs SHAP",
+                fontsize=16,
             )
 
         # Legends: colors for anonymization models, linestyles for methods
         ax = plt.gca()
+        ax.tick_params(axis="y", labelsize=14)
         color_handles = [
             Line2D(
                 [0],
@@ -1288,6 +1314,8 @@ class PlotCreator:
             if not show_tau
             else "Anonymization (# LIME < SHAP %)",
             loc=legend_placement,
+            fontsize=14,
+            title_fontsize=13,
         )
         plt.grid(True, linestyle="--", alpha=0.5)
         plt.tight_layout()
@@ -1505,9 +1533,9 @@ if __name__ == "__main__":
         "./data/",
     )
     # pl.plot_utility("adult", ["MLP", "forest", "knn"], True)
-    pl.plot_utility("cervic_cancer", average_models=True, show_feature_counts=True)
+    # pl.plot_utility("cervic_cancer", average_models=True, show_feature_counts=True)
     # pl.plot_line("forest", "adult", "shap")
-    # pl.plot_line("MLP", "usa_house", "shap")
+    pl.plot_line("MLP", "usa_house", "shap")
     # pl.plot_consistency(
     #     "usa_house",
     #     show_tau=True,
