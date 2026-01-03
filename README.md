@@ -19,3 +19,8 @@ This repository contains the code and experiments for a bachelor thesis investig
   - Adult dataset
   - Cervical Cancer dataset
   - USA House dataset
+
+## Specs of the explanation jobs run on HPC cluster
+
+- 1 Core with clockspeed in 2.8-3.4GHz range
+- 1 GB of memory
