@@ -28,6 +28,13 @@ The [LIME Repository](https://github.com/marcotcr/lime) has been [forked](https:
 - Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 
+### Specs of the explanation jobs run on HPC cluster
+
+- 1 Core with clockspeed in 2.8-3.4GHz range
+- Memory
+  - 500MB for SHAP explanations
+  - 12GB for LIME explanations
+
 ## Running Experiments
 
 Navigate to the `notebooks/` directory and launch JupyterLab:
