@@ -19,7 +19,7 @@ The project includes notebooks analyzing various aspects of XAI explanation qual
 ## Getting Started
 The project uses two branches actively. The `main` branch (this one) and the `anonymization` branch. The `anonymization` branch concerns itself with preprocessing and generating anonymized variants of datasets, while the `main` branch generates explanations and analyze the results. It has been split into two branches, because some of the packages used to anonymize datasets in `anonymization` has outdated dependencies and does not work with the newest versions of packages like numpy. 
 
-All the code can be run locally, but due to the slow computation of LIME and SHAP values, DTU's HPC cluster has been used to do most computations. All code related to the HPC cluster is located under the `hpc` folder, and uses this repo as it's only dependency. If you do not have access to the DTU HPC cluster, the code in the `hpc` folder should be able to run on any cluster that utilizes **IBM Spectrum LSF**.
+All the code can be run locally, but due to the slow computation of LIME and SHAP values, DTU's HPC cluster has been used to do most computations. All code related to the HPC cluster is located under the `hpc` folder, and uses this repo as it's only dependency. If you do not have access to the DTU HPC cluster, the code in the `hpc` folder should be able to run on any cluster that utilizes **IBM Spectrum LSF** and has `uv` installed. The OS of the DTU HPC cluster at the time of writing was `AlmaLinux 9.7 (Moss Jungle Cat)`. 
 
 The [LIME Repository](https://github.com/marcotcr/lime) has been [forked](https://github.com/Zak9O/lime) because it is no longer maintained, and the repo has been refactored slightly by the authors of this repo. 
 
