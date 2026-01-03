@@ -74,3 +74,6 @@ This project is currently unlicensed. Please contact the author for usage permis
 - [anjana](https://github.com/IFCA-Advanced-Computing/anjana)
 - [Custom anjana Fork](https://github.com/Zak9O/anjana)
 
+# Use of AI disclaimer
+
+We have used artificial intelligence tools from OpenAI, Anthropic, and Google to assist with the coding and structuring of this repo. In accordance with DTU’s guidelines for documenting the use of Generative AI, we acknowledge this usage and can provide detailed documentation including prompts, AI responses, and version information upon request. All AI-generated content has been reviewed and verified. The core research methodology, analysis, and conclusions remain entirely our own work and conclusions were conducted independently by us without the assistance of AI tools.
